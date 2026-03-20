@@ -1,0 +1,3058 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>三国志·知识图谱 v4</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;600;700;900&family=Ma+Shan+Zheng&display=swap');
+:root{
+  --bg:#0e1016;--bg2:#141820;--bg3:#1a2030;--bg4:#0c0e14;
+  --border:#2e3d58;--border2:#222d42;
+  --gold:#d4a843;--gold2:#f0c95a;--gold3:rgba(212,168,67,.15);
+  --text:#eee8d8;--text2:#aab8cc;--text3:#c4d0e0;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:'Noto Serif SC',serif;display:flex;flex-direction:column}
+
+header{display:flex;align-items:center;justify-content:space-between;padding:0 18px;height:48px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;gap:12px}
+.logo{font-family:'Ma Shan Zheng',serif;font-size:20px;letter-spacing:4px;color:var(--gold2);white-space:nowrap;text-shadow:0 0 18px rgba(240,201,90,.35)}
+.logo em{color:var(--text2);font-style:normal;font-size:11px;letter-spacing:2px;margin-left:8px;vertical-align:middle}
+.hdr-center{display:flex;gap:5px;align-items:center}
+.view-btn{background:transparent;border:1px solid var(--border);color:var(--text2);font-size:11px;font-family:'Noto Serif SC',serif;padding:5px 13px;cursor:pointer;letter-spacing:1px;border-radius:2px;transition:all .2s}
+.view-btn.active,.view-btn:hover{background:var(--gold3);color:var(--gold2);border-color:var(--gold)}
+.import-btn{background:transparent;border:1px solid var(--border2);color:var(--text2);font-size:11px;font-family:'Noto Serif SC',serif;padding:5px 12px;cursor:pointer;letter-spacing:1px;border-radius:2px;transition:all .2s}
+.import-btn:hover{border-color:var(--gold);color:var(--gold2)}
+
+.tl-bar{background:var(--bg3);border-bottom:1px solid var(--border);padding:7px 18px 5px;flex-shrink:0}
+.tl-top{display:flex;align-items:center;gap:12px}
+.tl-label{font-size:10px;color:var(--text2);letter-spacing:2px;white-space:nowrap}
+.tl-slider{-webkit-appearance:none;flex:1;height:3px;background:var(--border);border-radius:2px;outline:none;cursor:pointer}
+.tl-slider::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--gold);box-shadow:0 0 10px rgba(212,168,67,.6);cursor:pointer;border:2px solid var(--bg)}
+.tl-year{font-family:'Ma Shan Zheng',serif;font-size:26px;color:var(--gold2);min-width:80px;text-align:right;text-shadow:0 0 12px rgba(240,201,90,.4)}
+.tl-event{font-size:11px;color:var(--gold2);margin-top:3px;letter-spacing:.5px;min-height:15px}
+
+.filter-bar{display:flex;align-items:center;gap:7px;padding:0 18px;height:36px;background:var(--bg4);border-bottom:1px solid var(--border2);flex-shrink:0;overflow-x:auto}
+.filter-bar::-webkit-scrollbar{display:none}
+.fl{font-size:10px;color:var(--text2);letter-spacing:2px;white-space:nowrap}
+.fsep{width:1px;height:14px;background:var(--border);margin:0 3px;flex-shrink:0}
+.fchip{display:flex;align-items:center;gap:4px;background:transparent;border:1px solid var(--border2);color:var(--text2);font-size:10px;font-family:'Noto Serif SC',serif;padding:2px 9px;cursor:pointer;border-radius:2px;transition:all .15s;white-space:nowrap;flex-shrink:0}
+.fchip:hover,.fchip.on{background:var(--gold3);color:var(--gold2);border-color:var(--gold)}
+.fclr{font-size:10px;color:var(--text2);cursor:pointer;padding:2px 7px;border:1px solid transparent;border-radius:2px;letter-spacing:1px;white-space:nowrap;flex-shrink:0}
+.fclr:hover{color:var(--gold2);border-color:var(--border)}
+.fres{font-size:10px;color:var(--text3);letter-spacing:1px;margin-left:3px;white-space:nowrap}
+
+.main{display:flex;flex:1;overflow:hidden;min-height:0}
+
+.sidebar{width:210px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+.sidebar-hd{font-size:10px;color:var(--text2);letter-spacing:2px;padding:9px 12px 7px;border-bottom:1px solid var(--border);flex-shrink:0}
+.sidebar-search{padding:7px 10px;border-bottom:1px solid var(--border);flex-shrink:0}
+.char-search-input{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:'Noto Serif SC',serif;font-size:11px;padding:5px 9px;border-radius:2px;outline:none;box-sizing:border-box;transition:border-color .15s}
+.char-search-input:focus{border-color:var(--gold)}
+.char-search-input::placeholder{color:var(--text2);opacity:.6}
+.char-list{overflow-y:auto;flex:1}
+.char-list::-webkit-scrollbar{width:2px}
+.char-list::-webkit-scrollbar-thumb{background:var(--border)}
+.char-item{display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;border-bottom:1px solid rgba(46,61,88,.35);transition:background .15s;position:relative}
+.char-item:hover,.char-item.active{background:rgba(212,168,67,.08)}
+.char-item.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold)}
+.char-item.dimmed{opacity:.28}
+.c-avatar{width:36px;height:36px;border-radius:50%;flex-shrink:0;overflow:hidden;}
+.c-info{flex:1;min-width:0}
+.c-name{font-size:13px;font-weight:700;color:var(--text)}
+.c-sub{font-size:10px;color:var(--text2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.c-badge{font-size:9px;padding:2px 5px;border-radius:2px;letter-spacing:1px;flex-shrink:0;font-weight:600}
+
+.center{flex:1;position:relative;overflow:hidden}
+.view-pane{position:absolute;inset:0;transition:opacity .3s}
+.view-pane.hidden{opacity:0;pointer-events:none}
+
+/* MAP LAYER STACK */
+#map-container{width:100%;height:100%;position:relative;overflow:hidden;background:#1a1208}
+#terrain-canvas{position:absolute;top:0;left:0}
+#heightmap-canvas{position:absolute;top:0;left:0;width:100%;height:100%;display:none}
+#map-svg{position:absolute;top:0;left:0;width:100%;height:100%}
+.map-tooltip{position:absolute;background:rgba(15,10,4,.94);border:1px solid #8a6a20;padding:8px 12px;font-size:11px;color:#f0e0b0;pointer-events:none;border-radius:1px;max-width:220px;line-height:1.65;z-index:100;opacity:0;transition:opacity .15s;box-shadow:0 4px 16px rgba(0,0,0,.6)}
+
+/* Light control */
+
+.map-legend{position:absolute;bottom:12px;left:14px;background:rgba(14,10,3,.75);border:1px solid rgba(110,72,10,.45);padding:8px 11px;border-radius:1px;z-index:10}
+.map-legend-item{display:flex;align-items:center;gap:6px;font-size:10px;color:#c8b06a;margin-bottom:3px}
+.map-legend-item:last-child{margin-bottom:0}
+.map-legend-dot{width:8px;height:8px;border-radius:50%}
+
+/* Terrain status badge */
+.terrain-badge{position:absolute;bottom:12px;right:14px;background:rgba(14,10,3,.75);border:1px solid rgba(110,72,10,.35);padding:4px 10px;font-size:10px;color:var(--text2);letter-spacing:1px;border-radius:1px;z-index:10;opacity:0;transition:opacity .3s}
+.terrain-badge.show{opacity:1}
+.coord-badge{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:rgba(10,6,2,.88);border:1px solid var(--gold);color:var(--gold2);font-size:11px;font-family:'Noto Serif SC',serif;padding:5px 14px;border-radius:2px;z-index:20;display:none;letter-spacing:1px;cursor:crosshair}
+.coord-badge.active{display:block}
+
+/* GRAPH */
+#graph-svg{width:100%;height:100%}
+.g-link{stroke:rgba(212,168,67,.2);stroke-width:1.5}
+.g-link.hl{stroke:rgba(212,168,67,.8);stroke-width:2.5}
+.g-elabel{font-size:9px;fill:var(--gold2);opacity:.75;pointer-events:none;text-anchor:middle;font-family:'Noto Serif SC',serif}
+.g-node{cursor:pointer}
+.g-node circle{stroke-width:2}
+.g-node text{font-size:11px;fill:var(--text);pointer-events:none;text-anchor:middle;dominant-baseline:central;font-family:'Noto Serif SC',serif;font-weight:600}
+.graph-hint{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--text2);letter-spacing:1px;pointer-events:none}
+
+/* DETAIL PANEL */
+.dp{width:248px;background:var(--bg2);border-left:1px solid var(--border);overflow-y:auto;flex-shrink:0}
+.dp::-webkit-scrollbar{width:2px}
+.dp::-webkit-scrollbar-thumb{background:var(--border)}
+.dp-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text2);gap:8px;font-size:12px;letter-spacing:2px;opacity:.6}
+.dp-empty-icon{font-size:28px;opacity:.4}
+.dp-hd{padding:16px 16px 12px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,rgba(212,168,67,.05),transparent)}
+.dp-name{font-family:'Ma Shan Zheng',serif;font-size:26px;color:var(--gold2);letter-spacing:3px}
+.dp-zi{font-size:11px;color:var(--text2);margin-top:2px;letter-spacing:1px}
+.dp-badge{display:inline-block;margin-top:7px;font-size:10px;padding:2px 9px;border-radius:2px;letter-spacing:2px;font-weight:600}
+.dp-sec{padding:11px 16px;border-bottom:1px solid rgba(46,61,88,.4)}
+.dp-stitle{font-size:9px;color:var(--text2);letter-spacing:2px;margin-bottom:7px}
+.dp-row{display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;color:var(--text)}
+.dp-row span:last-child{color:var(--text2)}
+.dp-desc{font-size:11px;color:var(--text2);line-height:1.65;margin-top:3px}
+.srow{display:flex;align-items:center;gap:7px;margin-bottom:4px;font-size:10px}
+.sname{min-width:26px;color:var(--text2)}
+.sbar{flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+.sfill{height:100%;border-radius:2px;transition:width .5s ease}
+.sval{font-size:9px;color:var(--text2);min-width:22px;text-align:right}
+.rel-item{display:flex;align-items:center;gap:7px;margin-bottom:5px;font-size:11px}
+.tlev{display:flex;gap:9px;margin-bottom:9px;font-size:11px;opacity:0;transform:translateY(5px);transition:all .3s}
+.tlev.vis{opacity:1;transform:translateY(0)}
+.tlev-yr{color:var(--gold2);min-width:36px;font-size:10px;padding-top:1px;flex-shrink:0;font-weight:600}
+.tlev-desc{color:var(--text);line-height:1.55}
+.tlev-loc{font-size:10px;color:var(--text2);margin-top:2px}
+.quote-blk{border-left:2px solid var(--gold);padding:6px 10px;font-size:11px;color:var(--text2);line-height:1.7;font-style:italic}
+.terrain-info{display:flex;align-items:center;gap:6px;margin-top:5px;font-size:10px;padding:4px 8px;border-radius:2px;background:rgba(212,168,67,.06);border:1px solid rgba(212,168,67,.15)}
+
+/* IMPORT MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:1000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-overlay.open{opacity:1;pointer-events:all}
+/* Avatar lightbox */
+.av-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:3000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;cursor:zoom-out}
+.av-lightbox.open{opacity:1;pointer-events:all}
+.av-lightbox-inner{display:flex;flex-direction:column;align-items:center;gap:14px;pointer-events:none}
+.av-lightbox-img{width:70vmin;height:70vmin;border-radius:50%;overflow:hidden;border:3px solid var(--gold);box-shadow:0 0 60px rgba(212,168,67,.4),0 12px 48px rgba(0,0,0,.85);flex-shrink:0}
+.av-lightbox-img img{width:100%;height:100%;object-fit:cover;object-position:top center;display:block}
+.av-lightbox-name{font-family:'Ma Shan Zheng',serif;font-size:22px;color:var(--gold2);letter-spacing:4px;text-shadow:0 0 16px rgba(212,168,67,.5)}
+.av-lightbox-sub{font-size:12px;color:var(--text2);letter-spacing:2px}
+.modal{background:var(--bg2);border:1px solid var(--border);width:550px;max-height:80vh;display:flex;flex-direction:column;border-radius:2px}
+.modal-hd{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.modal-title{font-family:'Ma Shan Zheng',serif;font-size:18px;color:var(--gold2);letter-spacing:3px}
+.modal-close{background:transparent;border:none;color:var(--text2);font-size:18px;cursor:pointer}
+.modal-body{padding:14px 18px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+.modal-desc{font-size:11px;color:var(--text2);line-height:1.7}
+.modal-ta{width:100%;height:200px;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-size:11px;font-family:monospace;padding:10px;resize:vertical;outline:none;border-radius:2px}
+.modal-ta:focus{border-color:var(--gold)}
+.modal-actions{display:flex;gap:8px;padding:12px 18px;border-top:1px solid var(--border)}
+.mbtn{background:transparent;border:1px solid var(--border);color:var(--text2);font-family:'Noto Serif SC',serif;font-size:11px;padding:6px 16px;cursor:pointer;border-radius:2px;transition:all .2s;letter-spacing:1px}
+.mbtn.primary{background:var(--gold3);color:var(--gold2);border-color:var(--gold)}
+.mbtn:hover{border-color:var(--gold);color:var(--gold2)}
+.mstatus{font-size:11px;padding:5px 9px;border-radius:2px;display:none}
+.mstatus.ok{background:rgba(74,187,106,.12);color:#6fdc96;border:1px solid rgba(74,187,106,.3)}
+.mstatus.err{background:rgba(192,57,43,.12);color:#e87070;border:1px solid rgba(192,57,43,.3)}
+/* ── DATA EDITOR ── */
+.ed-overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:2000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.ed-overlay.open{opacity:1;pointer-events:all}
+.ed-modal{background:var(--bg2);border:1px solid var(--border);width:min(920px,96vw);height:min(700px,92vh);display:flex;flex-direction:column;border-radius:3px;overflow:hidden}
+.ed-hd{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:46px;background:var(--bg3);border-bottom:1px solid var(--border);flex-shrink:0}
+.ed-title{font-family:'Ma Shan Zheng',serif;font-size:17px;color:var(--gold2);letter-spacing:3px}
+.ed-close{background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;line-height:1;padding:0 4px}
+.ed-close:hover{color:var(--text)}
+.ed-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--bg3)}
+.ed-tab{padding:10px 20px;font-size:11px;font-family:'Noto Serif SC',serif;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;letter-spacing:1px;border:none;background:none;transition:all .15s}
+.ed-tab:hover{color:var(--text)}
+.ed-tab.active{color:var(--gold2);border-bottom:2px solid var(--gold)}
+.ed-body{display:flex;flex:1;overflow:hidden;min-height:0}
+.ed-list{width:220px;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+.ed-list-hd{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
+.ed-list-title{font-size:10px;color:var(--text2);letter-spacing:2px}
+.ed-add-btn{background:var(--gold3);border:1px solid var(--gold);color:var(--gold2);font-size:10px;font-family:'Noto Serif SC',serif;padding:3px 9px;cursor:pointer;border-radius:2px;transition:all .15s}
+.ed-add-btn:hover{background:rgba(212,168,67,.25)}
+.ed-items{overflow-y:auto;flex:1}
+.ed-items::-webkit-scrollbar{width:2px}
+.ed-items::-webkit-scrollbar-thumb{background:var(--border)}
+.ed-item{padding:9px 12px;cursor:pointer;border-bottom:1px solid rgba(46,61,88,.3);font-size:12px;color:var(--text);display:flex;align-items:center;justify-content:space-between;transition:background .12s;position:relative}
+.ed-item:hover{background:rgba(212,168,67,.06)}
+.ed-item.sel{background:rgba(212,168,67,.09);border-left:2px solid var(--gold)}
+.ed-item-sub{font-size:10px;color:var(--text2);margin-top:1px}
+.ed-del-btn{background:none;border:none;color:var(--text2);font-size:13px;cursor:pointer;opacity:0;padding:2px 4px;transition:opacity .12s;flex-shrink:0}
+.ed-item:hover .ed-del-btn{opacity:1}
+.ed-del-btn:hover{color:#e87070}
+.ed-form{flex:1;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:11px}
+.ed-form::-webkit-scrollbar{width:2px}
+.ed-form::-webkit-scrollbar-thumb{background:var(--border)}
+.ed-empty-msg{display:flex;align-items:center;justify-content:center;flex:1;color:var(--text2);font-size:12px;letter-spacing:2px;opacity:.5}
+.ef-row{display:flex;gap:9px;align-items:flex-start}
+.ef-field{display:flex;flex-direction:column;gap:4px;flex:1;min-width:0}
+.ef-label{font-size:9px;color:var(--text2);letter-spacing:2px}
+.ef-input{background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:'Noto Serif SC',serif;font-size:12px;padding:6px 8px;border-radius:2px;outline:none;width:100%;transition:border-color .15s}
+.ef-input:focus{border-color:var(--gold)}
+.ef-select{background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:'Noto Serif SC',serif;font-size:12px;padding:6px 8px;border-radius:2px;outline:none;width:100%}
+.ef-section{font-size:9px;color:var(--text2);letter-spacing:2px;padding-bottom:5px;border-bottom:1px solid var(--border);margin-top:2px}
+.ev-list{display:flex;flex-direction:column;gap:5px}
+.ev-item{background:var(--bg3);border:1px solid var(--border);border-radius:2px;padding:7px 9px;display:flex;gap:7px;align-items:flex-start}
+.ev-item-fields{flex:1;display:flex;gap:5px;flex-wrap:wrap}
+.ev-del{background:none;border:none;color:var(--text2);cursor:pointer;font-size:13px;padding:2px;transition:color .12s;flex-shrink:0}
+.ev-del:hover{color:#e87070}
+.ev-add-btn{background:transparent;border:1px dashed var(--border);color:var(--text2);font-size:11px;font-family:'Noto Serif SC',serif;padding:5px;cursor:pointer;border-radius:2px;text-align:center;letter-spacing:1px;transition:all .15s}
+.ev-add-btn:hover{border-color:var(--gold);color:var(--gold2)}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.ed-save-bar{padding:10px 18px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;background:var(--bg3)}
+.ed-save-btn{background:var(--gold3);border:1px solid var(--gold);color:var(--gold2);font-family:'Noto Serif SC',serif;font-size:11px;padding:7px 18px;cursor:pointer;border-radius:2px;letter-spacing:1px;transition:all .15s}
+.ed-save-btn:hover{background:rgba(212,168,67,.28)}
+.ed-status{font-size:11px;color:#6fdc96;opacity:0;transition:opacity .3s;letter-spacing:1px}
+.ed-status.show{opacity:1}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">三国志 · 知识图谱<em>v4 · 混合纹理地图</em></div>
+  <div class="hdr-center">
+    <button class="view-btn active" id="btnMap" onclick="switchView('map')">⊙ 地图视图</button>
+    <button class="view-btn" id="btnGraph" onclick="switchView('graph')">⊕ 关系图谱</button>
+  </div>
+  <div style="display:flex;gap:6px">
+    <button class="import-btn" onclick="openEditor()">✎ 数据管理</button>
+    <button class="import-btn" onclick="exportJSON()">⊟ 导出 JSON</button>
+    <button class="import-btn" onclick="openImport()">⊞ 导入 JSON</button>
+  </div>
+</header>
+
+<div class="tl-bar">
+  <div class="tl-top">
+    <span class="tl-label">时间轴</span>
+    <input type="range" class="tl-slider" id="yearSlider" min="184" max="280" value="200" step="1">
+    <div class="tl-year" id="yearDisplay">200年</div>
+  </div>
+  <div class="tl-event" id="eventTicker">▶ 官渡之战，曹操以少胜多大败袁绍</div>
+</div>
+
+<div class="filter-bar" id="filterBar">
+  <span class="fl">事件坐标</span>
+  <div class="fsep"></div>
+  <span class="fl" style="color:var(--text3)">年份：</span>
+  <div id="yearChips" style="display:flex;gap:4px;flex-shrink:0"></div>
+  <div class="fsep"></div>
+  <span class="fl" style="color:var(--text3)">地点：</span>
+  <div id="locChips" style="display:flex;gap:4px;flex-shrink:0"></div>
+  <div class="fsep"></div>
+  <span class="fres" id="filterResult"></span>
+  <span class="fclr" id="filterClear" onclick="clearFilters()" style="display:none">✕ 清除</span>
+</div>
+
+<div class="main">
+  <div class="sidebar">
+    <div class="sidebar-hd">人物列表 · CHARACTERS</div>
+    <div class="sidebar-search">
+      <input type="text" id="charSearch" class="char-search-input" placeholder="搜索人物…" oninput="filterCharSearch(this.value)">
+    </div>
+    <div class="char-list" id="charList"></div>
+  </div>
+
+  <div class="center">
+    <div class="view-pane" id="paneMap">
+      <div id="map-container">
+        <!-- Layer 1: Canvas terrain texture -->
+        <canvas id="terrain-canvas"></canvas>
+        <!-- Layer 2: heightmap (hidden, used for light computation) -->
+        <canvas id="heightmap-canvas"></canvas>
+        <!-- Layer 3: SVG overlay (lighting, labels, markers) -->
+        <svg id="map-svg"></svg>
+        <div class="map-tooltip" id="mapTooltip"></div>
+        <div class="coord-badge" id="coordBadge">点击地图选取坐标 · 移动查看: X=— Y=—</div>
+        <div class="map-legend">
+          <div class="map-legend-item"><div class="map-legend-dot" style="background:#6fa3d8"></div>魏国势力</div>
+          <div class="map-legend-item"><div class="map-legend-dot" style="background:#e08080"></div>蜀汉势力</div>
+          <div class="map-legend-item"><div class="map-legend-dot" style="background:#70d898"></div>东吴势力</div>
+          <div class="map-legend-item" style="margin-top:4px"><span style="font-size:9px;color:rgba(180,140,60,.6)">▓ 高原  ▒ 丘陵  ░ 平原</span></div>
+        </div>
+        <div class="terrain-badge" id="terrainBadge"></div>
+      </div>
+    </div>
+    <div class="view-pane hidden" id="paneGraph">
+      <svg id="graph-svg"></svg>
+      <div class="graph-hint">拖拽节点 · 点击选中 · 滚轮缩放</div>
+    </div>
+  </div>
+
+  <div class="dp" id="detailPanel">
+    <div class="dp-empty" id="dpEmpty"><div class="dp-empty-icon">⊕</div><div>点击人物查看详情</div></div>
+    <div id="dpContent" style="display:none"></div>
+  </div>
+</div>
+
+<div class="ed-overlay" id="editorModal">
+  <div class="ed-modal">
+    <div class="ed-hd">
+      <div class="ed-title">数据管理 · DATA EDITOR</div>
+      <button class="ed-close" onclick="closeEditor()">✕</button>
+    </div>
+    <div class="ed-tabs">
+      <button class="ed-tab active" id="edTabChar"  onclick="edSwitchTab('char')">人物</button>
+      <button class="ed-tab"        id="edTabEvent" onclick="edSwitchTab('event')">历史事件</button>
+      <button class="ed-tab"        id="edTabCity"  onclick="edSwitchTab('city')">地点</button>
+      <button class="ed-tab"        id="edTabRel"   onclick="edSwitchTab('rel')">关系</button>
+    </div>
+    <div class="ed-body" id="edBody">
+      <div class="ed-empty-msg">加载中…</div>
+    </div>
+    <div class="ed-save-bar">
+      <button class="ed-save-btn" id="edSaveBtn" onclick="edSave()">保存并应用</button>
+      <span class="ed-status" id="edStatus">✓ 已保存</span>
+      <span style="flex:1"></span>
+      <span style="font-size:10px;color:var(--text2);letter-spacing:1px">修改后点击「保存并应用」生效</span>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="importModal">
+  <div class="modal">
+    <div class="modal-hd">
+      <div class="modal-title">导入 JSON 数据</div>
+      <button class="modal-close" onclick="closeImport()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-desc">格式：<code style="color:var(--gold2);font-size:11px">{"characters":[...],"relationships":[...]}</code><br>
+        字段：id, name, zi, faction, region, born, died, stats{武力,智谋,政治,魅力}, quote, events[{year,loc,desc}]<br>
+        <span style="color:var(--gold2)">image_path</span>（可选）：头像图片路径，与 name 平级。<br>
+        示例：<code style="color:var(--text3);font-size:10px">"image_path": "Assets/Resources/Avatars/caocao_ink.png"</code><br>
+        图片加载失败时自动回退到程序生成头像。
+      </div>
+      <textarea class="modal-ta" id="importText"></textarea>
+      <div class="mstatus" id="importStatus"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="mbtn primary" onclick="doImport()">确认导入</button>
+      <button class="mbtn" onclick="loadSample()">载入示例</button>
+      <button class="mbtn" onclick="closeImport()">取消</button>
+    </div>
+  </div>
+</div>
+
+<div class="av-lightbox" id="avLightbox" onclick="closeAvatarLightbox()">
+  <div class="av-lightbox-inner">
+    <div class="av-lightbox-img" id="avLightboxImg"></div>
+    <div class="av-lightbox-name" id="avLightboxName"></div>
+    <div class="av-lightbox-sub" id="avLightboxSub"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  FACTION CONFIG
+// ═══════════════════════════════════════════════════════
+const FAC={
+  魏:{color:'#6fa3d8',bg:'rgba(74,127,187,.18)',border:'#4a7fbb'},
+  蜀:{color:'#e08080',bg:'rgba(187,74,74,.18)',border:'#bb4a4a'},
+  吴:{color:'#70d898',bg:'rgba(74,187,106,.18)',border:'#4abb6a'},
+  汉:{color:'#f0c95a',bg:'rgba(212,168,67,.18)',border:'#d4a843'},
+  群雄:{color:'#aab8cc',bg:'rgba(136,153,170,.12)',border:'#6b7d96'},
+};
+
+// ═══════════════════════════════════════════════════════
+//  MAP CANVAS DIMENSIONS (internal coord space)
+// ═══════════════════════════════════════════════════════
+const MW=1400, MH=920;
+
+// ═══════════════════════════════════════════════════════
+//  ELEVATION GRID  (28×18 cells covering MW×MH)
+//  0=deep water, 1=lowland, 2=plain, 3=hills, 4=mountain, 5=high plateau
+// ═══════════════════════════════════════════════════════
+const EG_COLS=56, EG_ROWS=36;
+const ELEV_RAW = [
+// Row 0 (north edge)
+  1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+// Row 1
+  1,1,1,2,2,2,2,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,3,3,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+// Row 2
+  1,2,2,2,3,3,4,4,4,4,3,3,2,2,2,2,2,2,2,2,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+// Row 3
+  2,2,3,4,5,5,5,4,4,4,4,3,3,2,2,2,2,2,2,2,2,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+// Row 4
+  2,2,3,4,5,5,5,4,3,3,3,3,2,2,2,2,2,2,2,2,2,2,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+// Row 5
+  2,2,3,3,4,5,4,4,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+// Row 6 — Qinling latitude
+  2,2,2,3,3,4,4,3,3,4,4,4,4,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+// Row 7
+  2,2,2,2,3,3,4,3,3,3,4,4,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+// Row 8
+  2,2,2,2,2,3,3,3,2,2,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,
+// Row 9
+  2,2,2,2,2,2,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,0,0,0,0,0,0,0,0,0,0,0,0,
+// Row 10 — Yangtze latitude
+  3,3,3,3,2,2,2,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,0,0,0,0,0,0,0,0,0,0,0,
+// Row 11
+  4,4,4,3,3,2,2,2,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,0,0,0,0,0,0,0,0,0,0,
+// Row 12
+  5,5,4,4,3,3,2,2,2,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,0,0,0,0,0,0,0,0,0,
+// Row 13
+  5,5,5,4,3,3,3,2,2,2,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,0,0,0,0,0,0,0,0,
+// Row 14
+  5,5,5,4,4,3,3,3,2,2,2,2,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,0,0,0,0,0,0,0,
+// Row 15
+  4,5,5,5,4,3,3,3,3,2,2,2,2,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,0,0,0,0,0,0,
+// Row 16
+  3,4,5,5,4,4,3,3,3,3,2,2,2,2,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,0,0,0,0,0,
+// Row 17
+  3,3,4,5,5,4,3,3,3,3,2,2,2,2,2,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,0,0,0,0,
+// Row 18
+  2,3,3,4,5,4,3,3,2,2,2,2,2,2,2,2,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,0,0,0,
+// Row 19
+  2,2,3,3,4,4,3,2,2,2,2,2,2,2,2,2,2,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,0,0,
+// Row 20
+  2,2,2,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,0,
+// Row 21
+  3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,
+// Row 22
+  4,4,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,
+// Row 23
+  4,4,4,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,
+// Row 24
+  3,4,4,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,
+// Row 25
+  3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,
+// Row 26
+  2,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,
+// Row 27–35: southern plains/sea
+  2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,
+  2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,
+  1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,
+  1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,0,
+  1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,0,0,
+  1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,0,0,0,
+  1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,0,0,0,0,
+  1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,0,0,0,0,0,
+  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,
+];
+
+// Smooth elevation by bilinear sample
+function sampleElev(nx, ny) {
+  const gx = nx * EG_COLS, gy = ny * EG_ROWS;
+  const ix = Math.min(Math.floor(gx), EG_COLS-1);
+  const iy = Math.min(Math.floor(gy), EG_ROWS-1);
+  const fx = gx - ix, fy = gy - iy;
+  const ix2 = Math.min(ix+1, EG_COLS-1), iy2 = Math.min(iy+1, EG_ROWS-1);
+  const v00=ELEV_RAW[iy*EG_COLS+ix]||1, v10=ELEV_RAW[iy*EG_COLS+ix2]||1;
+  const v01=ELEV_RAW[iy2*EG_COLS+ix]||1, v11=ELEV_RAW[iy2*EG_COLS+ix2]||1;
+  return v00*(1-fx)*(1-fy)+v10*fx*(1-fy)+v01*(1-fx)*fy+v11*fx*fy;
+}
+
+function getTerrainInfo(nx, ny) {
+  const e = sampleElev(nx, ny);
+  if(e<=0.5) return {name:'海域', speedMult:0, color:'#3a5a8a', icon:'🌊'};
+  if(e<1.5) return {name:'沿海低地', speedMult:1.2, color:'#6a8a5a', icon:'🌿'};
+  if(e<2.5) return {name:'平原', speedMult:1.0, color:'#8a9a5a', icon:'🌾'};
+  if(e<3.5) return {name:'丘陵', speedMult:0.75, color:'#7a7040', icon:'⛰'};
+  if(e<4.5) return {name:'山地', speedMult:0.5, color:'#6a5830', icon:'🏔'};
+  return {name:'高原险地', speedMult:0.3, color:'#8a8878', icon:'🗻'};
+}
+
+// ═══════════════════════════════════════════════════════
+//  TERRAIN CANVAS RENDERING
+//  Layer 1: rich parchment texture with terrain-colored biomes
+// ═══════════════════════════════════════════════════════
+
+// Biome color palette per elevation (parchment-toned)
+const BIOME_COLORS = [
+  [70, 110, 160],    // 0: water — muted blue
+  [140, 165, 105],   // 1: coastal lowland — pale sage
+  [185, 172, 110],   // 2: plain — warm parchment-yellow
+  [170, 148, 88],    // 3: hills — amber-brown
+  [145, 118, 72],    // 4: mountain base — sienna
+  [155, 148, 135],   // 5: high plateau — grey-stone
+];
+
+// Parchment base tint blended onto each biome
+const PARCHMENT_TINT = [222, 195, 135];
+
+let terrainBuilt = false;
+let heightmapData = null; // will store Float32Array of elevation values (normalized 0-1)
+
+function buildTerrainCanvas() {
+  if(terrainBuilt) return;
+  terrainBuilt = true;
+
+  const tc = document.getElementById('terrain-canvas');
+  const hc = document.getElementById('heightmap-canvas');
+
+  // Use a fixed internal resolution for the canvas
+  tc.width = MW; tc.height = MH;
+  hc.width = MW; hc.height = MH;
+
+  const ctx = tc.getContext('2d');
+  const hctx = hc.getContext('2d');
+
+  // We'll build the terrain pixel-by-pixel at a reduced resolution (2px cells)
+  // then ImageData for performance
+  const CELL = 3; // pixels per cell
+  const cols = Math.ceil(MW/CELL), rows = Math.ceil(MH/CELL);
+
+  const imgData = ctx.createImageData(MW, MH);
+  const hImgData = hctx.createImageData(MW, MH);
+  const d = imgData.data;
+  const hd = hImgData.data;
+
+  // Simple noise function (no external lib needed)
+  function noise2(x, y, seed=0) {
+    const n = Math.sin(x*127.1 + y*311.7 + seed*419.2) * 43758.5453;
+    return n - Math.floor(n);
+  }
+  function fbm(x, y, octaves=5) {
+    let v=0, amp=0.5, freq=1, max=0;
+    for(let i=0;i<octaves;i++){
+      v += noise2(x*freq, y*freq, i) * amp;
+      max += amp; freq *= 2.1; amp *= 0.5;
+    }
+    return v/max;
+  }
+
+  heightmapData = new Float32Array(MW * MH);
+
+  for(let py=0; py<MH; py++) {
+    for(let px=0; px<MW; px++) {
+      const nx = px/MW, ny = py/MH;
+      const baseElev = sampleElev(nx, ny);
+      const nv = baseElev / 5.0; // normalize to 0-1
+
+      // Add fractal noise detail
+      const detail = fbm(nx*8, ny*8) * 0.18 - 0.09;
+      const microDetail = fbm(nx*24, ny*24) * 0.06 - 0.03;
+      const elevN = Math.max(0, Math.min(1, nv + detail + microDetail));
+
+      heightmapData[py*MW + px] = elevN;
+
+      // Heightmap: store as grayscale (used for lighting)
+      const hv = Math.round(elevN * 255);
+      const hi = (py*MW + px)*4;
+      hd[hi]=hv; hd[hi+1]=hv; hd[hi+2]=hv; hd[hi+3]=255;
+
+      // Biome color from elevation
+      const elevIdx = baseElev;
+      const loIdx = Math.max(0, Math.floor(elevIdx));
+      const hiIdx = Math.min(5, loIdx+1);
+      const t = elevIdx - loIdx;
+      const clo = BIOME_COLORS[loIdx] || BIOME_COLORS[5];
+      const chi = BIOME_COLORS[hiIdx] || BIOME_COLORS[5];
+      let r = clo[0]*(1-t) + chi[0]*t;
+      let g = clo[1]*(1-t) + chi[1]*t;
+      let b = clo[2]*(1-t) + chi[2]*t;
+
+      // Blend with parchment tint (80% parchment character)
+      const parchmentBlend = 0.52;
+      r = r*(1-parchmentBlend) + PARCHMENT_TINT[0]*parchmentBlend;
+      g = g*(1-parchmentBlend) + PARCHMENT_TINT[1]*parchmentBlend;
+      b = b*(1-parchmentBlend) + PARCHMENT_TINT[2]*parchmentBlend;
+
+      // Micro detail variation
+      const grain = (fbm(nx*60, ny*60) - 0.5) * 12;
+      r = Math.max(0, Math.min(255, r + grain));
+      g = Math.max(0, Math.min(255, g + grain * 0.8));
+      b = Math.max(0, Math.min(255, b + grain * 0.5));
+
+      // Darker valleys (ambient occlusion hint)
+      if(elevN < 0.3 && baseElev >= 1) {
+        const ao = (0.3 - elevN) * 0.4;
+        r *= (1-ao); g *= (1-ao); b *= (1-ao);
+      }
+
+      const i = (py*MW + px)*4;
+      d[i] = r; d[i+1] = g; d[i+2] = b; d[i+3] = 255;
+    }
+  }
+
+  ctx.putImageData(imgData, 0, 0);
+  hctx.putImageData(hImgData, 0, 0);
+
+  // Post-process: add paper texture overlay via canvas
+  // Horizontal scan lines (aged paper look)
+  ctx.save();
+  for(let y=0; y<MH; y+=4) {
+    ctx.fillStyle = `rgba(100,65,10,${0.012 + Math.random()*0.008})`;
+    ctx.fillRect(0, y, MW, 1);
+  }
+  // Spot stains
+  for(let s=0; s<18; s++) {
+    const sx=Math.random()*MW, sy=Math.random()*MH;
+    const sr=20+Math.random()*80;
+    const grad=ctx.createRadialGradient(sx,sy,0,sx,sy,sr);
+    grad.addColorStop(0,`rgba(90,55,10,${0.04+Math.random()*0.04})`);
+    grad.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(sx,sy,sr,0,Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+
+  console.log('Terrain canvas built ✓');
+}
+
+// ═══════════════════════════════════════════════════════
+//  LIGHTING ENGINE (SVG feDiffuseLighting + feSpecularLighting)
+//  This is the "Normal Map" simulation layer
+// ═══════════════════════════════════════════════════════
+
+// Light state
+let lightAngle = 315; // degrees (azimuth, 0=north, 90=east)
+let lightElev = 38;   // degrees elevation above horizon
+let lightStr = 3.5;
+
+function lightXYZ() {
+  const az = lightAngle * Math.PI/180;
+  const el = lightElev * Math.PI/180;
+  return {
+    x: Math.sin(az) * Math.cos(el),
+    y: -Math.cos(az) * Math.cos(el),
+    z: Math.sin(el)
+  };
+}
+
+function buildLightingFilter(svgDefs, transform) {
+  // Remove old filter
+  svgDefs.select('#terrainLight').remove();
+
+  const L = lightXYZ();
+  const filt = svgDefs.append('filter')
+    .attr('id','terrainLight')
+    .attr('x','-2%').attr('y','-2%')
+    .attr('width','104%').attr('height','104%')
+    .attr('color-interpolation-filters','linearRGB');
+
+  // Use the heightmap canvas as the bump source via feImage
+  // Instead we use feTurbulence seeded to match our terrain as a fast proxy
+  // (actual heightmap would need CORS-free data URL - we build it inline)
+  filt.append('feTurbulence')
+    .attr('type','fractalNoise')
+    .attr('baseFrequency','0.008 0.006')
+    .attr('numOctaves','6')
+    .attr('seed','42')
+    .attr('result','noise');
+
+  // feComposite to modulate noise by elevation (simulate bumps)
+  filt.append('feColorMatrix')
+    .attr('in','noise').attr('type','saturate').attr('values','0').attr('result','grayNoise');
+
+  // Diffuse lighting — main shading
+  const diffuse = filt.append('feDiffuseLighting')
+    .attr('in','grayNoise')
+    .attr('surfaceScale', lightStr * 2.2)
+    .attr('diffuseConstant', 1.1)
+    .attr('result','diffLight')
+    .attr('lighting-color','#ffe8b8');
+
+  diffuse.append('feDistantLight')
+    .attr('azimuth', lightAngle)
+    .attr('elevation', lightElev);
+
+  // Specular highlight
+  const spec = filt.append('feSpecularLighting')
+    .attr('in','grayNoise')
+    .attr('surfaceScale', lightStr * 1.5)
+    .attr('specularConstant', 0.45)
+    .attr('specularExponent', 18)
+    .attr('result','specLight')
+    .attr('lighting-color','#fff4d8');
+
+  spec.append('feDistantLight')
+    .attr('azimuth', lightAngle)
+    .attr('elevation', lightElev);
+
+  // Blend diffuse with original
+  filt.append('feComposite')
+    .attr('in','diffLight').attr('in2','SourceGraphic')
+    .attr('operator','in').attr('result','litDiff');
+
+  // Add specular highlights
+  filt.append('feComposite')
+    .attr('in','specLight').attr('in2','SourceGraphic')
+    .attr('operator','in').attr('result','litSpec');
+
+  filt.append('feBlend')
+    .attr('in','litDiff').attr('in2','litSpec')
+    .attr('mode','screen').attr('result','combined');
+
+  // Blend result back onto source (partial application - 55% effect)
+  filt.append('feBlend')
+    .attr('in','SourceGraphic').attr('in2','combined')
+    .attr('mode','multiply');
+}
+
+// Second filter: just for the heightmap-driven bump effect directly on SVG layer
+function buildBumpFilter(svgDefs) {
+  svgDefs.select('#bumpMap').remove();
+  const bfilt = svgDefs.append('filter').attr('id','bumpMap')
+    .attr('x','-1%').attr('y','-1%').attr('width','102%').attr('height','102%');
+
+  bfilt.append('feTurbulence')
+    .attr('type','fractalNoise').attr('baseFrequency','0.012 0.009')
+    .attr('numOctaves','5').attr('seed','7').attr('result','bump');
+
+  const dl = bfilt.append('feDiffuseLighting')
+    .attr('in','bump').attr('surfaceScale', lightStr * 1.8)
+    .attr('diffuseConstant',0.9).attr('result','bumpLight')
+    .attr('lighting-color','#ffd08a');
+  dl.append('feDistantLight').attr('azimuth', lightAngle).attr('elevation', lightElev);
+
+  bfilt.append('feComposite').attr('in','bumpLight').attr('in2','SourceGraphic').attr('operator','in');
+}
+
+// ═══════════════════════════════════════════════════════
+//  CITY DATA
+// ═══════════════════════════════════════════════════════
+// ── City coordinates re-spaced: min ~60px apart on the 1400×920 canvas ──
+// North cluster (魏)
+// Central plains spread east-west
+// Shu cluster pushed southwest
+// Wu cluster spread southeast
+const MAP_CITIES=[
+  // ── 魏 北方 ──
+  {id:'yecheng',   name:'邺城',   x:680,  y:195,  tier:1}, // 魏首都 → 中北
+  {id:'luoyang',   name:'洛阳',   x:648,  y:318,  tier:1}, // 洛阳 → 保持位置
+  {id:'xuchang',   name:'许昌',   x:730,  y:390,  tier:1}, // 许昌 → 右移60
+  {id:'changan',   name:'长安',   x:470,  y:305,  tier:1}, // 长安 → 略左移
+  {id:'taiyuan',   name:'太原',   x:610,  y:200,  tier:2}, // 太原 → 左移70
+  {id:'jizhou',    name:'冀州',   x:710,  y:178,  tier:2}, // 冀州 → 上移30
+  {id:'qingzhou',  name:'青州',   x:830,  y:215,  tier:2}, // 青州 → 右移70
+  {id:'zhuo',      name:'涿郡',   x:668,  y:132,  tier:2}, // 涿郡 → 上移
+  {id:'youzhou',   name:'幽州',   x:760,  y:112,  tier:2}, // 幽州 → 右移
+  {id:'liaodong',  name:'辽东',   x:900,  y:95,   tier:2}, // 辽东 → 大幅右移
+  {id:'wuwei',     name:'武威',   x:205,  y:218,  tier:2}, // 武威 → 左移
+  {id:'liangzhou', name:'凉州',   x:265,  y:262,  tier:2}, // 凉州
+  {id:'baihe',     name:'白马',   x:762,  y:295,  tier:2}, // 白马 → 右移65
+  {id:'chenliu',   name:'陈留',   x:718,  y:335,  tier:2}, // 陈留 → 右移45
+  {id:'guandu',    name:'官渡',   x:700,  y:362,  tier:2}, // 官渡 → 右移20
+  {id:'yingchuan', name:'颍川',   x:692,  y:415,  tier:2}, // 颍川 → 右移25、下移25
+  {id:'runan',     name:'汝南',   x:660,  y:455,  tier:2}, // 汝南 → 下移40
+  {id:'hongnong',  name:'弘农',   x:582,  y:308,  tier:3}, // 弘农
+
+  // ── 中部要地 ──
+  {id:'xuzhou',    name:'徐州',   x:840,  y:355,  tier:1}, // 徐州 → 右移70
+  {id:'xiaopei',   name:'小沛',   x:808,  y:320,  tier:2}, // 小沛 → 右移55
+  {id:'xiapicheng',name:'下邳',   x:868,  y:378,  tier:2}, // 下邳 → 右移95
+  {id:'pengcheng', name:'彭城',   x:828,  y:342,  tier:3}, // 彭城
+  {id:'hefei',     name:'合肥',   x:820,  y:460,  tier:1}, // 合肥 → 右移70
+  {id:'shouchun',  name:'寿春',   x:790,  y:435,  tier:2}, // 寿春 → 右移55
+  {id:'chengjun',  name:'陈郡',   x:756,  y:408,  tier:3}, // 陈郡 → 右移45
+
+  // ── 蜀 西南 ──
+  {id:'chengdu',   name:'成都',   x:348,  y:545,  tier:1}, // 成都 → 左移42
+  {id:'hanzhong',  name:'汉中',   x:450,  y:428,  tier:1}, // 汉中 → 左移18
+  {id:'qishan',    name:'祁山',   x:368,  y:352,  tier:1}, // 祁山 → 左移52
+  {id:'wuzhangpo', name:'五丈原', x:435,  y:372,  tier:1}, // 五丈原 → 左移33
+  {id:'jiameng',   name:'葭萌',   x:392,  y:478,  tier:2}, // 葭萌 → 左移30
+  {id:'baidicheng',name:'白帝城', x:518,  y:525,  tier:2}, // 白帝城 → 右10下17
+  {id:'nanzhong',  name:'南中',   x:310,  y:638,  tier:2}, // 南中 → 左移52
+
+  // ── 荆州 中段 ──
+  {id:'longzhong', name:'隆中',   x:590,  y:478,  tier:1}, // 隆中 → 左移16
+  {id:'fancheng',  name:'樊城',   x:572,  y:445,  tier:1}, // 樊城 → 左移36
+  {id:'jiangling', name:'江陵',   x:570,  y:508,  tier:1}, // 江陵 → 左移48
+  {id:'yiling',    name:'夷陵',   x:528,  y:505,  tier:2}, // 夷陵 → 左移26
+  {id:'maicheng',  name:'麦城',   x:594,  y:490,  tier:2}, // 麦城 → 左移30
+  {id:'dangyang',  name:'当阳',   x:555,  y:488,  tier:2}, // 当阳 → 左移53
+  {id:'huarong',   name:'华容道', x:595,  y:526,  tier:2}, // 华容道 → 左移45
+  {id:'changsha',  name:'长沙',   x:630,  y:572,  tier:2}, // 长沙 → 右移25
+
+  // ── 吴 东南 ──
+  {id:'chibi',     name:'赤壁',   x:636,  y:520,  tier:1}, // 赤壁 → 右移22
+  {id:'chaisang',  name:'柴桑',   x:698,  y:515,  tier:1}, // 柴桑 → 右移14
+  {id:'wuchang',   name:'武昌',   x:720,  y:498,  tier:2}, // 武昌 → 右移22
+  {id:'jianye',    name:'建业',   x:858,  y:502,  tier:1}, // 建业 → 右移68
+  {id:'guiji',     name:'会稽',   x:940,  y:532,  tier:2}, // 会稽 → 右移95
+];
+const cityById={};
+MAP_CITIES.forEach(c=>{cityById[c.id]=c;cityById[c.name]=c;});
+
+// ═══════════════════════════════════════════════════════
+//  CHARACTER DATA
+// ═══════════════════════════════════════════════════════
+let characters=[
+  {id:'caocao',name:'曹操',zi:'孟德',faction:'魏',region:'沛国谯县',born:155,died:220,
+   image_path:'Assets/Resources/Avatars/caocao_ink.png',
+   stats:{武力:78,智谋:95,政治:98,魅力:88},quote:'宁教我负天下人，休教天下人负我。',
+   events:[{year:184,loc:'颍川',desc:'讨伐黄巾，初立军功'},{year:189,loc:'陈留',desc:'刺杀董卓未遂，逃归陈留起兵'},{year:196,loc:'许昌',desc:'迎汉献帝，挟天子以令诸侯'},{year:200,loc:'官渡',desc:'官渡之战，以少胜多大败袁绍'},{year:208,loc:'赤壁',desc:'赤壁之战，败于孙刘联军'},{year:220,loc:'洛阳',desc:'病逝，子曹丕称帝建魏'}]},
+  {id:'liubei',name:'刘备',zi:'玄德',faction:'蜀',region:'涿郡涿县',born:161,died:223,
+   image_path:'Assets/Resources/Avatars/liubei_ink.png',
+   stats:{武力:65,智谋:72,政治:80,魅力:96},quote:'勿以恶小而为之，勿以善小而不为。',
+   events:[{year:184,loc:'涿郡',desc:'与关羽张飞桃园结义，讨伐黄巾'},{year:194,loc:'小沛',desc:'陶谦让徐州，刘备领徐州牧'},{year:200,loc:'官渡',desc:'官渡之战前夕，依附袁绍'},{year:207,loc:'隆中',desc:'三顾茅庐，诸葛亮出山'},{year:208,loc:'赤壁',desc:'联吴抗曹，赤壁大捷'},{year:221,loc:'成都',desc:'称帝，建立蜀汉'},{year:223,loc:'白帝城',desc:'夷陵之战惨败，白帝城托孤'}]},
+  {id:'guanyu',name:'关羽',zi:'云长',faction:'蜀',region:'河东解县',born:160,died:219,
+   image_path:'Assets/Resources/Avatars/guanyu_ink.png',
+   stats:{武力:97,智谋:70,政治:60,魅力:92},quote:'吾极知曹公待我厚，然吾受刘将军厚恩，誓以共死，不可背之。',
+   events:[{year:184,loc:'涿郡',desc:'桃园三结义'},{year:200,loc:'白马',desc:'斩颜良文丑，解白马之围'},{year:208,loc:'华容道',desc:'华容道义释曹操'},{year:219,loc:'樊城',desc:'水淹七军，威震华夏'},{year:219,loc:'麦城',desc:'败走麦城，被孙权所擒斩'}]},
+  {id:'zhugeliang',name:'诸葛亮',zi:'孔明',faction:'蜀',region:'琅琊阳都',born:181,died:234,
+   image_path:'Assets/Resources/Avatars/zhugeliang_ink.png',
+   stats:{武力:55,智谋:100,政治:95,魅力:88},quote:'鞠躬尽瘁，死而后已。',
+   events:[{year:207,loc:'隆中',desc:'隆中对，提出三分天下战略'},{year:208,loc:'柴桑',desc:'出使东吴，舌战群儒，促成孙刘联盟'},{year:225,loc:'南中',desc:'七擒孟获，平定南方'},{year:228,loc:'祁山',desc:'第一次北伐，街亭失守'},{year:234,loc:'五丈原',desc:'五丈原病逝，星落五丈原'}]},
+  {id:'sunquan',name:'孙权',zi:'仲谋',faction:'吴',region:'吴郡富春',born:182,died:252,
+   image_path:'Assets/Resources/Avatars/sunquan_ink.png',
+   stats:{武力:72,智谋:85,政治:90,魅力:85},quote:'生子当如孙仲谋。',
+   events:[{year:200,loc:'建业',desc:'继承父兄基业，主政江东'},{year:208,loc:'柴桑',desc:'赤壁之战，联刘抗曹'},{year:219,loc:'建业',desc:'袭取荆州，斩关羽'},{year:222,loc:'夷陵',desc:'夷陵之战，火烧连营大败刘备'},{year:229,loc:'建业',desc:'称帝，建立东吴'}]},
+  {id:'zhouyu',name:'周瑜',zi:'公瑾',faction:'吴',region:'庐江舒县',born:175,died:210,
+   image_path:'Assets/Resources/Avatars/zhouyu_ink.png',
+   stats:{武力:85,智谋:92,政治:78,魅力:96},quote:'既生瑜，何生亮。',
+   events:[{year:194,loc:'建业',desc:'辅助孙策平定江东'},{year:208,loc:'赤壁',desc:'指挥赤壁之战，火烧曹军'},{year:210,loc:'建业',desc:'病逝，年仅三十六岁'}]},
+  {id:'yuanshao',name:'袁绍',zi:'本初',faction:'群雄',region:'汝南汝阳',born:153,died:202,
+   image_path:'Assets/Resources/Avatars/yuanshao_ink.png',
+   stats:{武力:70,智谋:60,政治:72,魅力:80},quote:'吾有上将千员，谋士百人，何惧曹操？',
+   events:[{year:189,loc:'洛阳',desc:'讨伐董卓，推举盟主'},{year:191,loc:'邺城',desc:'夺取冀州，势力最盛'},{year:200,loc:'官渡',desc:'官渡之战，十万大军败于曹操'},{year:202,loc:'邺城',desc:'官渡惨败后忧愤而死'}]},
+  {id:'lvbu',name:'吕布',zi:'奉先',faction:'群雄',region:'五原郡九原',born:160,died:199,
+   image_path:'Assets/Resources/Avatars/lvbu_ink.png',
+   stats:{武力:100,智谋:35,政治:30,魅力:70},quote:'吾有画戟方天，赤兔宝马，天下谁敌？',
+   events:[{year:189,loc:'洛阳',desc:'助王允诛杀董卓'},{year:193,loc:'许昌',desc:'攻占兖州，与曹操交战'},{year:196,loc:'小沛',desc:'夺取徐州，与刘备争锋'},{year:199,loc:'下邳',desc:'下邳城破，被曹操所擒杀'}]},
+];
+
+let relationships=[
+  {source:'liubei',target:'guanyu',type:'结义兄弟',strength:3},
+  {source:'liubei',target:'zhugeliang',type:'君臣',strength:3},
+  {source:'liubei',target:'caocao',type:'政敌',strength:2},
+  {source:'liubei',target:'sunquan',type:'盟友',strength:2},
+  {source:'caocao',target:'yuanshao',type:'政敌',strength:3},
+  {source:'caocao',target:'lvbu',type:'宿敌',strength:2},
+  {source:'guanyu',target:'caocao',type:'知遇/敌对',strength:1},
+  {source:'sunquan',target:'zhouyu',type:'君臣',strength:3},
+  {source:'sunquan',target:'caocao',type:'政敌',strength:2},
+  {source:'sunquan',target:'guanyu',type:'宿敌',strength:2},
+  {source:'zhouyu',target:'zhugeliang',type:'对手',strength:2},
+  {source:'zhouyu',target:'caocao',type:'政敌',strength:2},
+  {source:'yuanshao',target:'lvbu',type:'盟友',strength:1},
+];
+
+const HIST_EVENTS=[
+  {year:184,text:'黄巾起义爆发，张角称天公将军'},
+  {year:189,text:'董卓入洛阳，废少帝立献帝'},
+  {year:196,text:'曹操迎汉献帝于许昌，挟天子以令诸侯'},
+  {year:200,text:'官渡之战，曹操以少胜多大败袁绍'},
+  {year:207,text:'三顾茅庐，诸葛亮隆中对天下三分'},
+  {year:208,text:'赤壁之战，孙刘联军火烧曹军'},
+  {year:219,text:'关羽水淹七军威震华夏，后败走麦城'},
+  {year:220,text:'曹操薨，曹丕称帝，汉朝灭亡'},
+  {year:221,text:'刘备称帝于成都，建立蜀汉'},
+  {year:222,text:'夷陵之战，陆逊火烧连营七百里'},
+  {year:228,text:'诸葛亮第一次北伐，马谡失街亭'},
+  {year:234,text:'诸葛亮五丈原病逝，星落五丈原'},
+  {year:263,text:'魏灭蜀，刘禅投降，蜀汉灭亡'},
+  {year:280,text:'西晋灭吴，三分归晋，天下一统'},
+];
+
+const BATTLES=[
+  {year:200,loc:'官渡',name:'官渡之战',desc:'曹操以少胜多，击败袁绍，奠定北方霸主地位'},
+  {year:208,loc:'赤壁',name:'赤壁之战',desc:'孙刘联军火烧曹军，奠定三分天下格局'},
+  {year:219,loc:'樊城',name:'水淹七军',desc:'关羽水淹于禁七军，威震华夏'},
+  {year:222,loc:'夷陵',name:'夷陵之战',desc:'陆逊火烧连营，刘备大败退守白帝城'},
+  {year:228,loc:'祁山',name:'诸葛北伐',desc:'诸葛亮第一次北伐，出祁山攻魏'},
+  {year:234,loc:'五丈原',name:'五丈原对峙',desc:'诸葛亮与司马懿对峙，病逝于此'},
+];
+
+// ═══════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════
+let currentYear=200,selectedChar=null,currentView='map';
+let filterYear=null,filterLoc=null,simulation=null;
+
+// ═══════════════════════════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════════════════════════
+function getFaction(c,y){
+  if(c.id==='liubei'&&y>=221)return '蜀';
+  if(c.id==='caocao'&&y>=220)return '魏';
+  return c.faction;
+}
+function isAlive(c,y){return y>=c.born-20;} // 只检查是否已登场，不因去世而隐藏
+function getEvAt(c,y){const p=c.events.filter(e=>e.year<=y);return p[p.length-1]||null;}
+function getNearHist(y){return HIST_EVENTS.reduce((b,e)=>Math.abs(e.year-y)<Math.abs(b.year-y)?e:b);}
+function getFilteredChars(){
+  if(!filterYear&&!filterLoc)return null;
+  return characters.filter(c=>{
+    if(!isAlive(c,filterYear||currentYear))return false;
+    if(filterLoc){const ev=c.events.find(e=>e.loc===filterLoc&&(!filterYear||e.year<=filterYear));return !!ev;}
+    return !!getEvAt(c,filterYear||currentYear);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  PORTRAIT GENERATOR
+// ═══════════════════════════════════════════════════════
+function eybAngle(deg,dir){return Math.tan(deg*Math.PI/180)*3*dir;}
+function charPortrait(char,size=36){
+  const f=getFaction(char,200),fac=FAC[f]||FAC['群雄'];
+  const seed=char.id.split('').reduce((a,c)=>a+c.charCodeAt(0),0);
+  const rng=(n,mn,mx)=>mn+(seed*(n+1)*2654435761%100)/100*(mx-mn);
+  const skinTones=['#f5d5a0','#e8c080','#d4a865','#c49050','#e0c090'];
+  const skin=skinTones[seed%skinTones.length];
+  const style=seed%3,hasFacialHair=seed%3!==0,facialHairType=seed%2;
+  const eyebrowAngle=rng(8,-15,15);
+  const helmetColors=[fac.color,'#8aaccc','#cc8a8a','#8acc9a','#c4a840'];
+  const helmetColor=helmetColors[seed%helmetColors.length];
+  const s=size,cx=s/2,cy=s/2,r=s/2;
+  let p=`<svg width="${s}" height="${s}" viewBox="0 0 ${s} ${s}" xmlns="http://www.w3.org/2000/svg">
+    <defs><clipPath id="cp_${char.id}_${size}"><circle cx="${cx}" cy="${cy}" r="${r}"/></clipPath></defs>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="${fac.bg}"/>
+    <g clip-path="url(#cp_${char.id}_${size})">
+    <rect x="0" y="0" width="${s}" height="${s}" fill="${fac.bg}" opacity="0.4"/>
+    <rect x="${cx-3}" y="${cy+7}" width="6" height="10" rx="2" fill="${skin}"/>
+    <ellipse cx="${cx}" cy="${s-2}" rx="${s*.42}" ry="${s*.22}" fill="${fac.border}" opacity="0.8"/>
+    <ellipse cx="${cx}" cy="${s-2}" rx="${s*.28}" ry="${s*.14}" fill="${fac.color}" opacity="0.4"/>`;
+  const hy=cy-3;
+  p+=`<ellipse cx="${cx}" cy="${hy}" rx="${s*.22}" ry="${s*.24}" fill="${skin}"/>`;
+  if(style===2){
+    p+=`<ellipse cx="${cx}" cy="${hy-s*.14}" rx="${s*.24}" ry="${s*.16}" fill="${helmetColor}" opacity="0.9"/>
+    <rect x="${cx-s*.24}" y="${hy-s*.16}" width="${s*.48}" height="${s*.08}" rx="1" fill="${helmetColor}" opacity="0.9"/>
+    <line x1="${cx}" y1="${hy-s*.28}" x2="${cx}" y2="${hy-s*.18}" stroke="${fac.color}" stroke-width="2" opacity="0.8"/>
+    <ellipse cx="${cx}" cy="${hy-s*.3}" rx="2" ry="4" fill="${fac.color}" opacity="0.7"/>`;
+  }else if(style===0){
+    p+=`<ellipse cx="${cx}" cy="${hy-s*.2}" rx="${s*.22}" ry="${s*.12}" fill="#2a1a0a" opacity="0.9"/>
+    <rect x="${cx-2}" y="${hy-s*.3}" width="4" height="${s*.14}" rx="2" fill="#2a1a0a" opacity="0.9"/>
+    <ellipse cx="${cx}" cy="${hy-s*.3}" rx="4" ry="3" fill="#2a1a0a" opacity="0.9"/>
+    <line x1="${cx-4}" y1="${hy-s*.28}" x2="${cx+4}" y2="${hy-s*.28}" stroke="${fac.color}" stroke-width="1" opacity="0.8"/>`;
+  }else{
+    p+=`<ellipse cx="${cx}" cy="${hy-s*.18}" rx="${s*.22}" ry="${s*.14}" fill="#1a0e05" opacity="0.9"/>
+    <ellipse cx="${cx-s*.18}" cy="${hy}" rx="${s*.07}" ry="${s*.12}" fill="#1a0e05" opacity="0.85"/>
+    <ellipse cx="${cx+s*.18}" cy="${hy}" rx="${s*.07}" ry="${s*.12}" fill="#1a0e05" opacity="0.85"/>`;
+  }
+  const ey=hy+1,exL=cx-s*.08,exR=cx+s*.08,bo=s*.035;
+  p+=`<ellipse cx="${exL}" cy="${ey}" rx="2.5" ry="1.8" fill="white" opacity="0.9"/>
+  <ellipse cx="${exR}" cy="${ey}" rx="2.5" ry="1.8" fill="white" opacity="0.9"/>
+  <circle cx="${exL}" cy="${ey}" r="1.4" fill="#1a0e00"/>
+  <circle cx="${exR}" cy="${ey}" r="1.4" fill="#1a0e00"/>
+  <line x1="${exL-bo}" y1="${ey-bo+eybAngle(eyebrowAngle,-1)}" x2="${exL+bo}" y2="${ey-bo+eybAngle(eyebrowAngle,1)}" stroke="#2a1a0a" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="${exR-bo}" y1="${ey-bo+eybAngle(-eyebrowAngle,1)}" x2="${exR+bo}" y2="${ey-bo+eybAngle(-eyebrowAngle,-1)}" stroke="#2a1a0a" stroke-width="1.2" stroke-linecap="round"/>
+  <ellipse cx="${cx}" cy="${hy+s*.07}" rx="1.5" ry="1" fill="${skin}" stroke="rgba(0,0,0,0.15)" stroke-width="0.5"/>
+  <path d="M${cx-3},${hy+s*.13} Q${cx},${hy+s*.15} ${cx+3},${hy+s*.13}" fill="none" stroke="rgba(100,50,20,0.6)" stroke-width="1" stroke-linecap="round"/>`;
+  if(hasFacialHair){
+    if(facialHairType===0){
+      p+=`<path d="M${cx-4},${hy+s*.1} Q${cx-2},${hy+s*.13} ${cx},${hy+s*.1} Q${cx+2},${hy+s*.13} ${cx+4},${hy+s*.1}" fill="none" stroke="#1a0e00" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>`;
+    }else{
+      p+=`<path d="M${cx-4},${hy+s*.13} Q${cx},${hy+s*.22} ${cx+4},${hy+s*.13}" fill="#1a0e00" opacity="0.5"/>`;
+    }
+  }
+  p+=`</g></svg>`;
+  return p;
+}
+
+// ═══════════════════════════════════════════════════════
+//  头像渲染 —— 优先使用 image_path，fallback 到程序生成头像
+//  支持三种上下文：
+//    HTML内联  → renderAvatarHTML(char, size)  返回 HTML 字符串
+//    SVG内联   → renderAvatarSVG(g, char, size) 向 d3 selection 注入 foreignObject
+// ═══════════════════════════════════════════════════════
+
+// 把 Assets/Resources/... 路径转成可用 URL
+// 本地文件直接用相对路径；如果是 http/https 开头直接用
+function resolveImagePath(path) {
+  if(!path) return null;
+  if(path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) return path;
+  // 转为相对路径（去掉可能的前缀斜杠）
+  return path.startsWith('/') ? path : ('./' + path);
+}
+
+// 返回 HTML 字符串（用于 innerHTML 场景）
+function renderAvatarHTML(char, size=36) {
+  const f=getFaction(char,currentYear||200);
+  const fac=FAC[f]||FAC['群雄'];
+  const s=size;
+  const borderColor=fac.color;
+
+  if(char.image_path) {
+    const src=resolveImagePath(char.image_path);
+    return `<div style="width:${s}px;height:${s}px;border-radius:50%;overflow:hidden;background:${fac.bg}">
+      <img src="${src}" alt="${char.name}"
+        style="width:100%;height:100%;object-fit:cover;object-position:top center;display:block"
+        onerror="this.parentNode.innerHTML='${charPortrait(char,s).replace(/'/g,'&#39;').replace(/"/g,'&quot;')}'"/>
+    </div>`;
+  }
+  return `<div style="width:${s}px;height:${s}px;border-radius:50%;overflow:hidden;">${charPortrait(char,s)}</div>`;
+}
+
+// 向 d3 foreignObject 内注入头像（用于 SVG 场景）
+function injectAvatarFO(fo, char, size, borderColor, boxShadow='') {
+  const f=getFaction(char,currentYear||200);
+  const fac=FAC[f]||FAC['群雄'];
+  const bc=borderColor||fac.color;
+  const div=fo.append('xhtml:div').attr('xmlns','http://www.w3.org/1999/xhtml')
+    .style('width',size+'px').style('height',size+'px')
+    .style('border-radius','50%').style('overflow','hidden')
+    .style('box-sizing','border-box')
+    .style('background',fac.bg);
+
+  if(char.image_path) {
+    const src=resolveImagePath(char.image_path);
+    div.append('xhtml:img')
+      .attr('src',src)
+      .attr('alt',char.name)
+      .style('width','100%').style('height','100%')
+      .style('object-fit','cover').style('object-position','top center')
+      .style('display','block')
+      // onerror fallback: swap to generated portrait
+      .attr('onerror',`this.parentNode.innerHTML='${charPortrait(char,size).replace(/'/g,"&#39;").replace(/\n/g,' ')}'`);
+  } else {
+    div.html(charPortrait(char,size));
+  }
+}
+function switchView(v){
+  currentView=v;
+  document.getElementById('paneMap').classList.toggle('hidden',v!=='map');
+  document.getElementById('paneGraph').classList.toggle('hidden',v!=='graph');
+  document.getElementById('btnMap').classList.toggle('active',v==='map');
+  document.getElementById('btnGraph').classList.toggle('active',v==='graph');
+  if(v==='graph'){rebuildGraph();if(selectedChar)hlGraph(selectedChar.id);}
+  if(v==='map')renderMap();
+}
+
+// ═══════════════════════════════════════════════════════
+//  FILTER
+// ═══════════════════════════════════════════════════════
+const KEY_YEARS=[184,189,196,200,207,208,219,220,221,222,228,234,263,280];
+const KEY_LOCS=['官渡','赤壁','许昌','成都','建业','洛阳','樊城','隆中','五丈原','祁山','夷陵'];
+function buildFilterBar(){
+  const yc=document.getElementById('yearChips'),lc=document.getElementById('locChips');
+  yc.innerHTML='';lc.innerHTML='';
+  KEY_YEARS.forEach(y=>{const b=document.createElement('button');b.className='fchip'+(filterYear===y?' on':'');b.textContent=y+'年';b.onclick=()=>toggleYF(y);yc.appendChild(b);});
+  KEY_LOCS.forEach(l=>{const b=document.createElement('button');b.className='fchip'+(filterLoc===l?' on':'');b.textContent=l;b.onclick=()=>toggleLF(l);lc.appendChild(b);});
+  updateFRes();
+}
+function toggleYF(y){filterYear=filterYear===y?null:y;if(filterYear){currentYear=filterYear;syncSlider();}buildFilterBar();applyFilters();}
+function toggleLF(l){filterLoc=filterLoc===l?null:l;buildFilterBar();applyFilters();}
+function clearFilters(){filterYear=null;filterLoc=null;buildFilterBar();applyFilters();}
+function applyFilters(){buildCharList(getFilteredChars());updateFRes(getFilteredChars());if(currentView==='map')renderMap();else{rebuildGraph();if(selectedChar)hlGraph(selectedChar.id);}}
+function updateFRes(fc_){
+  const res=document.getElementById('filterResult'),clr=document.getElementById('filterClear');
+  if(!filterYear&&!filterLoc){res.textContent='';clr.style.display='none';return;}
+  clr.style.display='';
+  const count=fc_?fc_.length:characters.filter(c=>isAlive(c,currentYear)).length;
+  let txt='';if(filterYear)txt+=filterYear+'年';if(filterLoc)txt+=(txt?'·':'')+filterLoc;
+  res.textContent=`筛选：${txt} → ${count} 人`;
+}
+
+// ═══════════════════════════════════════════════════════
+//  CHAR LIST
+// ═══════════════════════════════════════════════════════
+function buildCharList(filtered){
+  const list=document.getElementById('charList');list.innerHTML='';
+  const fids=filtered?new Set(filtered.map(c=>c.id)):null;
+  // 搜索过滤
+  const q=charSearchQuery||'';
+  const chars=q
+    ? characters.filter(c=>c.name.toLowerCase().includes(q)||
+        (c.zi||'').toLowerCase().includes(q)||
+        (c.region||'').toLowerCase().includes(q))
+    : characters;
+  chars.forEach(char=>{
+    const f=getFaction(char,currentYear),fac=FAC[f]||FAC['群雄'];
+    const isDead=currentYear>char.died;
+    const isDimmed=fids&&!fids.has(char.id);
+    const item=document.createElement('div');
+    item.className='char-item'+(selectedChar?.id===char.id?' active':'')+(isDimmed?' dimmed':'');
+    // Show terrain info for char's current location
+    const ev=getEvAt(char,currentYear);
+    const city=ev?cityById[ev.loc]:null;
+    const terrInfo=city?getTerrainInfo(city.x/MW,city.y/MH):null;
+    const deadTag=isDead?`<span style="font-size:9px;color:#888;margin-left:3px">⚰${char.died}</span>`:'';
+    item.innerHTML=`
+      <div class="c-avatar" style="box-shadow:inset 0 0 0 1.5px ${isDead?'#555':fac.color};${isDead?'filter:grayscale(0.5);':''}cursor:zoom-in" data-charid="${char.id}">${renderAvatarHTML(char,36)}</div>
+      <div class="c-info">
+        <div class="c-name">${char.name}${deadTag}</div>
+        <div class="c-sub">${char.zi} · ${ev?.loc||'—'}${terrInfo?` <span style="color:${terrInfo.color}">${terrInfo.icon}</span>`:''}</div>
+      </div>
+      <span class="c-badge" style="background:${fac.bg};color:${fac.color};border:1px solid ${fac.border}">${f}</span>`;
+    // 头像点击 → 预览大图，不触发 selectChar
+    item.querySelector('.c-avatar').addEventListener('click', e => {
+      e.stopPropagation();
+      openAvatarLightbox(char);
+    });
+    item.addEventListener('click',()=>selectChar(char));
+    list.appendChild(item);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  HYBRID MAP RENDER
+// ═══════════════════════════════════════════════════════
+let mapSvgG=null, mapZoom=null, mapSvgRef=null, svgDefsRef=null;
+
+function renderMap(){
+  // Build terrain canvas on first render (expensive, only once)
+  buildTerrainCanvas();
+
+  const container=document.getElementById('map-container');
+  const rect=container.getBoundingClientRect();
+  const VW=rect.width||900, VH=rect.height||560;
+
+  // Canvas: size is set once in buildTerrainCanvas, only update CSS transform here
+  const tc=document.getElementById('terrain-canvas');
+  tc.style.width=MW+'px'; tc.style.height=MH+'px';
+  tc.style.transformOrigin='0 0';
+
+  const initScale=Math.min(VW/MW,VH/MH);
+  const initX=(VW-MW*initScale)/2, initY=(VH-MH*initScale)/2;
+  const initTransform=d3.zoomIdentity.translate(initX,initY).scale(initScale);
+
+  // Apply initial canvas transform
+  tc.style.transform=`translate(${initX}px,${initY}px) scale(${initScale})`;
+
+  const svg=d3.select('#map-svg').attr('viewBox',`0 0 ${VW} ${VH}`);
+  svg.selectAll('*').remove();
+
+  const g=svg.append('g').attr('transform',initTransform);
+  const defs=svg.append('defs');
+  mapSvgG=g; svgDefsRef=defs; mapSvgRef=svg;
+
+  mapZoom=d3.zoom().scaleExtent([0.2,8])
+    .on('zoom',e=>{
+      const t=e.transform;
+      g.attr('transform',t);
+      tc.style.transform=`translate(${t.x}px,${t.y}px) scale(${t.k})`;
+    });
+  svg.call(mapZoom).call(mapZoom.transform,initTransform);
+  bindCoordEvents(svg);
+  svg.on('click.deselect',function(e){
+    if(e.target===this||e.target.tagName==='svg'){
+      if(selectedChar){selectedChar=null;buildCharList(getFilteredChars());renderMap();}
+    }
+  });
+
+  // ── Build SVG lighting overlay ──
+  buildLightingFilter(defs, initTransform);
+
+  // ── Lighting rect that applies the filter to entire map ──
+  // This makes the terrain canvas visually receive the normal-map lighting
+  g.append('rect').attr('id','lightLayer')
+    .attr('width',MW).attr('height',MH)
+    .attr('fill','rgba(255,240,200,0.0)')
+    .attr('filter','url(#terrainLight)')
+    .style('pointer-events','none');
+
+  // ── Vignette overlay ──
+  const vigDef=defs.append('radialGradient').attr('id','vig')
+    .attr('cx','50%').attr('cy','50%').attr('r','70%')
+    .attr('gradientUnits','userSpaceOnUse')
+    .attr('cx2',MW/2).attr('cy2',MH/2).attr('r2',Math.max(MW,MH)*0.72);
+  vigDef.append('stop').attr('offset','55%').attr('stop-color','transparent');
+  vigDef.append('stop').attr('offset','100%').attr('stop-color','rgba(40,18,0,0.5)');
+  g.append('rect').attr('width',MW).attr('height',MH).attr('fill','url(#vig)').style('pointer-events','none');
+
+  // ── Border frame ──
+  const bm=22;
+  [[bm,bm,MW-bm*2,MH-bm*2,3],[bm+5,bm+5,MW-bm*2-10,MH-bm*2-10,0.8]].forEach(([x,y,w,h,sw])=>{
+    g.append('rect').attr('x',x).attr('y',y).attr('width',w).attr('height',h)
+      .attr('fill','none').attr('stroke','rgba(120,80,15,0.7)').attr('stroke-width',sw);
+  });
+  g.append('rect').attr('x',bm+5).attr('y',bm+5).attr('width',MW-bm*2-10).attr('height',MH-bm*2-10)
+    .attr('fill','none').attr('stroke','rgba(120,80,15,0.4)').attr('stroke-width',0.6).attr('stroke-dasharray','6,4');
+  [[bm,bm],[MW-bm,bm],[bm,MH-bm],[MW-bm,MH-bm]].forEach(([cx,cy],i)=>{
+    const sgn=[[1,1],[-1,1],[1,-1],[-1,-1]][i];
+    g.append('circle').attr('cx',cx).attr('cy',cy).attr('r',5).attr('fill','rgba(130,85,18,0.8)');
+    g.append('line').attr('x1',cx).attr('y1',cy).attr('x2',cx+sgn[0]*20).attr('y2',cy).attr('stroke','rgba(120,80,15,0.65)').attr('stroke-width',1.5);
+    g.append('line').attr('x1',cx).attr('y1',cy).attr('x2',cx).attr('y2',cy+sgn[1]*20).attr('stroke','rgba(120,80,15,0.65)').attr('stroke-width',1.5);
+  });
+
+  // ── Title ──
+  g.append('text').attr('x',MW/2).attr('y',bm+26).attr('text-anchor','middle')
+    .attr('font-family','Ma Shan Zheng,serif').attr('font-size',30).attr('fill','rgba(60,30,4,0.7)')
+    .attr('letter-spacing',12).text('三  国  形  势  图');
+  g.append('text').attr('x',MW/2).attr('y',bm+48).attr('text-anchor','middle')
+    .attr('font-family','Noto Serif SC,serif').attr('font-size',12).attr('fill','rgba(80,45,8,0.5)')
+    .attr('letter-spacing',5).text('汉末建安至三分归晋  · 184—280年');
+
+  // ── SVG terrain features (rivers, labels, etc.) drawn on top of canvas ──
+  drawTerrainFeatures(g);
+
+  // ── Territory boundaries ──
+  drawTerritories(g);
+
+  // ── Cities ──
+  drawCities(g);
+
+  // ── Battles ──
+  drawBattles(g);
+
+  // ── Characters ──
+  drawCharacters(g);
+
+  // ── UI decorations ──
+  drawCompassRose(g);
+  drawScaleBar(g, bm);
+  drawLegendBox(g, bm);
+}
+
+function drawTerrainFeatures(g) {
+  const rl=d3.line().curve(d3.curveCatmullRom.alpha(0.5));
+
+  // Rivers — drawn as SVG paths over the terrain canvas
+  function river(pts,w,col='rgba(80,120,210,0.55)'){
+    g.append('path').attr('d',rl(pts)).attr('fill','none')
+      .attr('stroke',col).attr('stroke-width',w).attr('stroke-linecap','round');
+    // highlight edge (light on water)
+    g.append('path').attr('d',rl(pts)).attr('fill','none')
+      .attr('stroke','rgba(180,210,255,0.2)').attr('stroke-width',w*0.4).attr('stroke-linecap','round');
+  }
+  function riverLabel(x,y,txt){
+    g.append('text').attr('x',x).attr('y',y).attr('text-anchor','middle')
+      .attr('font-family','Noto Serif SC,serif').attr('font-size',11)
+      .attr('fill','rgba(55,80,170,0.65)').attr('letter-spacing',2).text(txt);
+  }
+
+  // 黄河 — wide double-channel river (characteristic great bend, shifted right to match new layout)
+  // Outer bank (wide fill)
+  g.append('path').attr('d', rl([[235,210],[260,232],[282,255],[290,280],[283,308],[272,330],[262,352],[264,375],[276,398],[298,415],[324,428],[355,438],[390,442],[425,440],[462,435],[498,425],[535,418],[568,416],[600,418],[632,420],[665,425],[698,422],[730,418],[762,410],[796,400],[830,388],[862,375],[895,360],[928,344],[960,328],[990,312]])).attr('fill','none').attr('stroke','rgba(90,140,220,0.18)').attr('stroke-width',14).attr('stroke-linecap','round');
+  // Mid channel
+  river([[235,210],[260,232],[282,255],[290,280],[283,308],[272,330],[262,352],[264,375],[276,398],[298,415],[324,428],[355,438],[390,442],[425,440],[462,435],[498,425],[535,418],[568,416],[600,418],[632,420],[665,425],[698,422],[730,418],[762,410],[796,400],[830,388],[862,375],[895,360],[928,344],[960,328],[990,312]],6.5,'rgba(85,130,215,0.62)');
+  // Surface highlight
+  g.append('path').attr('d', rl([[235,210],[260,232],[282,255],[290,280],[283,308],[272,330],[262,352],[264,375],[276,398],[298,415],[324,428],[355,438],[390,442],[425,440],[462,435],[498,425],[535,418],[568,416],[600,418],[632,420],[665,425],[698,422],[730,418],[762,410],[796,400],[830,388],[862,375],[895,360],[928,344],[960,328],[990,312]])).attr('fill','none').attr('stroke','rgba(180,215,255,0.22)').attr('stroke-width',2).attr('stroke-linecap','round');
+  riverLabel(408,455,'黄  河');
+
+  // 长江
+  river([[320,555],[350,545],[382,535],[415,525],[448,520],[480,518],[512,518],[542,515],[568,510],[592,505],[618,502],[645,505],[668,510],[692,510],[718,508],[742,505],[768,498],[795,490],[822,480],[850,468],[878,455],[905,440],[930,428],[955,418],[978,408],[1000,405],[1025,406],[1050,412],[1075,422],[1095,432]],5.5,'rgba(70,105,200,0.6)');
+  riverLabel(505,535,'长  江');
+
+  // 汉水
+  river([[435,342],[442,358],[448,375],[452,392],[454,412],[454,432],[452,450],[448,468],[444,485],[440,502],[436,515],[432,528]],2.5);
+  riverLabel(420,460,'汉  水');
+
+  // 渭水
+  river([[290,312],[318,316],[348,318],[378,320],[405,318],[432,315],[456,312],[478,315],[500,318],[522,322],[545,325]],2.2);
+  riverLabel(418,308,'渭  水');
+
+  // 淮河
+  river([[585,398],[618,402],[650,405],[682,408],[714,410],[746,410],[778,408],[810,405],[842,402],[870,400]],2.2);
+  riverLabel(742,394,'淮  河');
+
+  // 岷江
+  river([[368,440],[372,455],[375,472],[378,488],[380,505],[382,520],[383,538]],1.8);
+
+  // 湘江
+  river([[645,578],[640,558],[636,538],[632,518],[628,502]],1.8);
+  riverLabel(618,552,'湘  江');
+
+  // 赣江
+  river([[800,572],[804,552],[808,532],[810,510],[812,490]],1.8);
+
+  // Sea labels handled in drawCoastline
+
+  // ── 山脉绘制 ──
+  drawMountainRanges(g);
+
+  // ── 海岸线 ──
+  drawCoastline(g, svgDefsRef);
+
+  // ── 湖泊详细绘制 ──
+  drawDetailedLakes(g);
+
+  // ── 长城 ──
+  const gwPts=[[268,148],[300,142],[335,136],[370,132],[405,128],[440,126],[478,126],[515,128],[552,132],[590,136],[628,140],[665,145],[700,152],[735,158]];
+  g.append('path').attr('d','M'+gwPts.map(p=>p.join(',')).join(' L'))
+    .attr('fill','none').attr('stroke','rgba(80,48,8,0.55)').attr('stroke-width',3)
+    .attr('stroke-dasharray','5,3').attr('stroke-linecap','square');
+  gwPts.forEach((p,i)=>{
+    if(i%3===0) g.append('rect').attr('x',p[0]-3).attr('y',p[1]-4).attr('width',6).attr('height',5).attr('fill','rgba(80,48,8,0.5)');
+  });
+  g.append('text').attr('x',498).attr('y',112).attr('text-anchor','middle')
+    .attr('font-family','Noto Serif SC,serif').attr('font-size',10).attr('fill','rgba(80,48,8,0.55)').attr('letter-spacing',4).text('长  城');
+
+  // ── 关隘 Strategic Passes ──
+  drawPasses(g);
+}
+
+// ─────────────────────────────────────────────────────────
+//  山脉绘制引擎 v3  —  七层结构
+//  1.远山蓝影  2.背排次峰  3.主峰右暗面  4.主峰左亮面
+//  5.岩石裂纹  6.树木植被带  7.积雪+高光
+// ─────────────────────────────────────────────────────────
+function drawMountainRanges(g) {
+
+  function drawRange(pts, opts={}) {
+    const {
+      step=18, h=16, spread=12,
+      fillA=0.22, strokeA=0.42, snowA=0.5,
+      vegA=0.15,           // vegetation belt opacity
+      label=null, labelX=null, labelY=null, fontSize=10,
+      hasVeg=true,         // show pine tree silhouettes at base
+    } = opts;
+
+    const fill    = `rgba(108,74,20,${fillA})`;
+    const fillLt  = `rgba(138,98,32,${fillA*0.8})`;  // lit face
+    const shadow  = `rgba(38,20,4,${fillA*0.62})`;
+    const farShad = `rgba(55,32,8,${fillA*0.28})`;
+    const stroke  = `rgba(72,44,7,${strokeA})`;
+    const snow    = `rgba(248,238,205,${snowA})`;
+    const snowHi  = `rgba(255,252,235,${snowA*0.65})`;
+    const snowSh  = `rgba(200,188,160,${snowA*0.45})`;
+    const crack   = `rgba(48,26,4,${fillA*0.72})`;
+    const striae  = `rgba(215,182,112,0.055)`;  // horizontal rock lines
+    const veg     = `rgba(62,88,42,${vegA})`;   // pine green
+
+    // ── interpolate ridge ──
+    function interp(step) {
+      const out=[]; let prev=pts[0]; out.push(pts[0]);
+      for(let i=1;i<pts.length;i++){
+        const [cx,cy]=pts[i],[px,py]=prev;
+        const d=Math.sqrt((cx-px)**2+(cy-py)**2);
+        let w=0;
+        while(w+step<=d){w+=step;const t=w/d;out.push([px+(cx-px)*t,py+(cy-py)*t]);}
+        prev=pts[i];
+      }
+      out.push(pts[pts.length-1]);
+      return out;
+    }
+
+    const main = interp(step);
+    const back = interp(step*1.55);
+    const far  = interp(step*2.2);
+    const rg   = g.append('g').attr('class','mtn');
+
+    // ── Layer 1: 远山蓝影 ──
+    far.forEach((p,i)=>{
+      const ox=((i*29)%15)-7;
+      const ph=h*0.48, pw=spread*0.8;
+      rg.append('path').attr('d',`M${p[0]-pw+ox},${p[1]+h*0.6} L${p[0]+ox},${p[1]-ph+h*0.6} L${p[0]+pw+ox},${p[1]+h*0.6}`)
+        .attr('fill',farShad).attr('stroke','none');
+    });
+
+    // ── Layer 2: 背排次峰 ──
+    back.forEach((p,i)=>{
+      const ox=(i%2===0)?-spread*0.42:spread*0.35;
+      const ph=h*0.82, pw=spread*0.88;
+      const [bx,by]=[p[0]+ox, p[1]+h*0.22];
+      rg.append('path').attr('d',`M${bx-pw},${by} L${bx},${by-ph} L${bx+pw},${by}`)
+        .attr('fill',shadow).attr('stroke','none');
+    });
+
+    // ── Layers 3–7: 主峰 ──
+    main.forEach((p,i)=>{
+      const [px,py]=p;
+      const pw = spread*(0.88+((i*13)%7)*0.03);
+      const ph = h*(0.85+((i*7)%9)*0.028);
+
+      // 3. 右暗面
+      rg.append('path').attr('d',`M${px},${py} L${px},${py-ph} L${px+pw},${py}`)
+        .attr('fill',shadow).attr('stroke',stroke).attr('stroke-width',0.52).attr('stroke-linejoin','round');
+
+      // 4. 左亮面
+      rg.append('path').attr('d',`M${px-pw},${py} L${px},${py-ph} L${px},${py}`)
+        .attr('fill',fill).attr('stroke',stroke).attr('stroke-width',0.52).attr('stroke-linejoin','round');
+
+      // 5. 岩石水平层理纹（左面3条，右面2条）
+      for(let t=1;t<=3;t++){
+        const fy=py-ph*t/3.8, lx1=px-pw*(1-t/3.8)*0.78, lx2=px;
+        rg.append('line').attr('x1',lx1).attr('y1',fy).attr('x2',lx2).attr('y2',fy-ph*0.07)
+          .attr('stroke',striae).attr('stroke-width',0.38);
+      }
+      // 右面裂纹
+      for(let t=1;t<=2;t++){
+        const fy=py-ph*t/2.8, rx1=px, rx2=px+pw*(1-t/2.8)*0.62;
+        rg.append('line').attr('x1',rx1).attr('y1',fy).attr('x2',rx2).attr('y2',fy+ph*0.1)
+          .attr('stroke',crack).attr('stroke-width',0.28);
+      }
+
+      // 6. 植被带：山腰处画3-4棵小三角松树
+      if(hasVeg && ph>8){
+        const treeY = py - ph*0.22;  // 树生长在峰高22%处以下
+        const treeCount = 2 + (i%2);
+        for(let t=0;t<treeCount;t++){
+          const tx = px - pw*0.65 + t*(pw*1.3/treeCount);
+          const th = ph*0.14;
+          // 松树：两层三角
+          rg.append('polygon')
+            .attr('points',`${tx},${treeY-th} ${tx-th*0.6},${treeY} ${tx+th*0.6},${treeY}`)
+            .attr('fill',veg).attr('stroke','none');
+          rg.append('polygon')
+            .attr('points',`${tx},${treeY-th*0.62} ${tx-th*0.42},${treeY+th*0.22} ${tx+th*0.42},${treeY+th*0.22}`)
+            .attr('fill',`rgba(48,72,30,${vegA*0.8})`).attr('stroke','none');
+        }
+      }
+
+      // 7a. 雪帽主体
+      const snowH = ph*0.29;
+      rg.append('path').attr('d',`M${px-pw*0.30},${py-ph+snowH} L${px},${py-ph} L${px+pw*0.30},${py-ph+snowH}`)
+        .attr('fill',snow).attr('stroke','none');
+
+      // 7b. 雪帽高光核心
+      rg.append('path').attr('d',`M${px-pw*0.15},${py-ph+snowH*0.42} L${px},${py-ph} L${px+pw*0.15},${py-ph+snowH*0.42}`)
+        .attr('fill',snowHi).attr('stroke','none').attr('opacity',0.75);
+
+      // 7c. 雪帽阴影（右侧）
+      rg.append('path').attr('d',`M${px},${py-ph} L${px+pw*0.30},${py-ph+snowH} L${px+pw*0.12},${py-ph+snowH}`)
+        .attr('fill',snowSh).attr('stroke','none');
+
+      // 7d. 雪沟（积雪融化留下的纵向雪线）
+      if(i%2===0){
+        rg.append('line')
+          .attr('x1',px-pw*0.26).attr('y1',py-ph+snowH)
+          .attr('x2',px-pw*0.44).attr('y2',py-ph+snowH*2.5)
+          .attr('stroke',`rgba(230,220,190,${snowA*0.32})`).attr('stroke-width',0.45);
+        rg.append('line')
+          .attr('x1',px+pw*0.18).attr('y1',py-ph+snowH)
+          .attr('x2',px+pw*0.32).attr('y2',py-ph+snowH*2.2)
+          .attr('stroke',`rgba(190,178,152,${snowA*0.25})`).attr('stroke-width',0.38);
+      }
+
+      // 山脊高光
+      rg.append('line')
+        .attr('x1',px-pw*0.48).attr('y1',py-ph*0.5)
+        .attr('x2',px).attr('y2',py-ph)
+        .attr('stroke','rgba(245,222,168,0.13)').attr('stroke-width',0.42);
+    });
+
+    // ── 山脉名标注 ──
+    if(label){
+      const lx=labelX??pts[Math.floor(pts.length/2)][0];
+      const ly=labelY??(pts[Math.floor(pts.length/2)][1]-h-8);
+      rg.append('text').attr('x',lx+0.8).attr('y',ly+0.8).attr('text-anchor','middle')
+        .attr('font-family','Noto Serif SC,serif').attr('font-size',fontSize)
+        .attr('fill','rgba(255,238,190,0.24)').attr('letter-spacing',1).text(label);
+      rg.append('text').attr('x',lx).attr('y',ly).attr('text-anchor','middle')
+        .attr('font-family','Noto Serif SC,serif').attr('font-size',fontSize)
+        .attr('fill','rgba(58,30,5,0.68)').attr('letter-spacing',1).text(label);
+    }
+  }
+
+  // ══════════════════════════════════════════════════════
+  //  各山脉（脊线 + 参数）
+  // ══════════════════════════════════════════════════════
+
+  // 1. 秦岭 — 最重要的分界山脉，峰最高，植被最密
+  drawRange([
+    [308,338],[328,328],[348,320],[368,314],[390,308],[412,304],[432,302],
+    [452,302],[472,305],[492,308],[512,312],[530,316],[548,320],[562,322]
+  ], {h:21,step:15,spread:14,fillA:0.30,strokeA:0.52,snowA:0.52,vegA:0.18,
+      label:'秦  岭',labelY:283,fontSize:11});
+
+  // 2. 太行山 — 南北向，华北脊梁
+  drawRange([
+    [608,168],[612,185],[616,202],[620,220],[624,238],
+    [628,256],[630,272],[632,290],[634,308],[635,322]
+  ], {h:17,step:13,spread:11,fillA:0.26,strokeA:0.46,snowA:0.38,vegA:0.14,
+      label:'太 行 山',labelX:591,labelY:236,fontSize:10});
+
+  // 3. 大巴山 — 汉中盆地北
+  drawRange([
+    [368,430],[388,424],[408,418],[428,414],[448,412],
+    [468,414],[488,418],[505,424],[520,430]
+  ], {h:16,step:14,spread:12,fillA:0.25,strokeA:0.44,snowA:0.38,vegA:0.16,
+      label:'大 巴 山',labelY:396,fontSize:10});
+
+  // 4. 巫山 — 三峡，最险峻（高而窄）
+  drawRange([
+    [505,482],[515,488],[525,494],[535,498],[545,500],[552,502]
+  ], {h:20,step:11,spread:9,fillA:0.28,strokeA:0.48,snowA:0.28,vegA:0.12,
+      label:'巫  山',labelX:528,labelY:466,fontSize:9});
+
+  // 5. 祁连山 — 西北，常年积雪
+  drawRange([
+    [168,235],[195,222],[222,212],[248,208],[272,208],[295,212],[315,218]
+  ], {h:24,step:16,spread:15,fillA:0.32,strokeA:0.54,snowA:0.68,vegA:0.08,
+      label:'祁 连 山',labelX:242,labelY:190,fontSize:10});
+
+  // 6. 阴山 — 内蒙，长城以北屏障
+  drawRange([
+    [288,128],[318,122],[348,118],[380,115],[412,114],
+    [445,114],[478,115],[512,118],[548,122],[582,126],[615,130]
+  ], {h:13,step:18,spread:10,fillA:0.19,strokeA:0.36,snowA:0.28,vegA:0.06,
+      label:'阴  山',labelX:450,labelY:99,fontSize:10});
+
+  // 7. 南岭 — 岭南屏障，热带植被多（关掉雪）
+  drawRange([
+    [488,615],[512,608],[538,604],[562,602],[588,602],
+    [612,604],[638,608],[662,614],[685,620]
+  ], {h:15,step:15,spread:11,fillA:0.22,strokeA:0.40,snowA:0.0,vegA:0.22,
+      label:'南  岭',labelX:588,labelY:587,fontSize:10});
+
+  // 8. 武陵山 — 湘西
+  drawRange([
+    [548,530],[562,525],[575,522],[588,522],[600,525],[610,530]
+  ], {h:13,step:12,spread:10,fillA:0.20,strokeA:0.38,snowA:0.0,vegA:0.18,
+      label:'武 陵 山',labelX:578,labelY:507,fontSize:9});
+
+  // 9. 贺兰山 — 黄河套西壁
+  drawRange([
+    [245,245],[248,262],[250,280],[252,298],[252,315]
+  ], {h:20,step:12,spread:12,fillA:0.28,strokeA:0.48,snowA:0.42,vegA:0.10,
+      label:'贺 兰 山',labelX:228,labelY:266,fontSize:9});
+
+  // 10. 六盘山（陇山）
+  drawRange([
+    [292,282],[298,298],[302,315],[305,332],[306,348]
+  ], {h:16,step:12,spread:10,fillA:0.25,strokeA:0.42,snowA:0.32,vegA:0.12,
+      label:'六 盘 山',labelX:275,labelY:306,fontSize:9});
+
+  // 11. 伏牛山 — 秦岭东延
+  drawRange([
+    [562,325],[572,332],[580,340],[586,350],[590,360]
+  ], {h:13,step:11,spread:9,fillA:0.20,strokeA:0.37,snowA:0.18,vegA:0.14,
+      label:'伏 牛 山',labelX:602,labelY:335,fontSize:9});
+
+  // 12. 幕阜山/九华山
+  drawRange([
+    [720,528],[738,525],[755,524],[772,526],[788,530]
+  ], {h:12,step:12,spread:9,fillA:0.17,strokeA:0.34,snowA:0.0,vegA:0.18,
+      label:'幕 阜 山',labelX:754,labelY:509,fontSize:9});
+
+  // 13. 天山余脉 — 最高，常年冰雪
+  drawRange([
+    [100,195],[128,182],[155,175],[180,172],[205,174]
+  ], {h:26,step:17,spread:16,fillA:0.30,strokeA:0.50,snowA:0.75,vegA:0.04,
+      label:'天  山',labelX:152,labelY:156,fontSize:10});
+
+  // 14. 大别山
+  drawRange([
+    [718,438],[730,432],[742,428],[754,426],[766,428],[776,432]
+  ], {h:13,step:12,spread:9,fillA:0.19,strokeA:0.36,snowA:0.0,vegA:0.16,
+      label:'大 别 山',labelX:748,labelY:411,fontSize:9});
+
+  // 15. 燕山 — 幽州以北，连接东部长城
+  drawRange([
+    [655,148],[672,145],[690,143],[708,142],[728,144],[748,148],[768,154]
+  ], {h:13,step:14,spread:10,fillA:0.18,strokeA:0.34,snowA:0.22,vegA:0.10,
+      label:'燕  山',labelX:712,labelY:130,fontSize:9});
+
+  // 16. 长白山余脉 — 东北
+  drawRange([
+    [868,122],[888,116],[908,112],[928,115],[945,120]
+  ], {h:15,step:14,spread:11,fillA:0.20,strokeA:0.36,snowA:0.50,vegA:0.12,
+      label:'长 白 山',labelX:908,labelY:98,fontSize:9});
+
+  // 17. 庐山（单峰，江西，孤峰标志性）
+  drawRange([[778,498],[785,492],[792,488],[798,492],[804,498]],
+    {h:14,step:10,spread:8,fillA:0.22,strokeA:0.40,snowA:0.0,vegA:0.20,
+     label:'庐  山',labelX:792,labelY:476,fontSize:8.5});
+
+  // 18. 峨眉山 — 蜀中名山（单峰区）
+  drawRange([[352,538],[358,532],[365,528],[372,532],[378,538]],
+    {h:16,step:10,spread:8,fillA:0.24,strokeA:0.42,snowA:0.15,vegA:0.22,
+     label:'峨 眉 山',labelX:365,labelY:514,fontSize:8.5});
+}
+
+// ─────────────────────────────────────────────────────────
+//  海岸线绘制 v2
+//  六层：深海 → 浅海渐变 → 沙滩色带 → 岸线 → 礁石群 → 密集波纹
+// ─────────────────────────────────────────────────────────
+function drawCoastline(g, svgDefs) {
+  const rl=d3.line().curve(d3.curveCatmullRom.alpha(0.5));
+
+  // ── 主海岸线坐标 ──
+  const mainCoast=[
+    [948,108],[958,122],[962,138],[965,155],[968,172],
+    [978,188],[992,202],[1002,215],[1008,228],[1005,242],
+    [998,255],[990,268],[985,282],[988,295],[994,308],
+    [1005,318],[1018,328],[1028,338],[1032,350],[1025,362],
+    [1015,372],[1005,382],[998,395],[995,408],[998,422],
+    [1002,438],[1006,452],[1010,468],[1012,482],[1010,498],
+    [1005,512],[998,525],[992,538],[988,552],[985,565],
+    [980,578],[975,592],[972,608],[968,622],[962,636],
+    [955,650],[945,662],[935,672],[922,680],[908,686],
+    [895,692],[882,698],[868,702],[852,705],[838,706],
+    [822,705],[808,702],[795,698],[780,695],[766,692],
+    [752,690],[738,688],[722,686],[708,685],[692,686],
+    [678,690],[665,696],[650,702],[636,708],[620,712],
+  ];
+
+  // ── 深海渐变定义 ──
+  const sdg=svgDefs.append('linearGradient').attr('id','seaDepth')
+    .attr('x1','0%').attr('y1','0%').attr('x2','100%').attr('y2','0%');
+  sdg.append('stop').attr('offset','0%').attr('stop-color','rgba(62,102,178,0)');
+  sdg.append('stop').attr('offset','60%').attr('stop-color','rgba(52,88,165,0.12)');
+  sdg.append('stop').attr('offset','100%').attr('stop-color','rgba(38,68,148,0.22)');
+  g.append('rect').attr('x',950).attr('y',80).attr('width',430).attr('height',780)
+    .attr('fill','url(#seaDepth)').attr('stroke','none');
+
+  // ── Layer 1: 海洋基础填色 ──
+  const seaFill=[...mainCoast,[620,860],[1380,860],[1380,80],[948,80]];
+  g.append('path').attr('d','M'+seaFill.map(p=>p.join(',')).join(' L')+' Z')
+    .attr('fill','rgba(65,105,180,0.11)').attr('stroke','none');
+
+  // ── Layer 2: 沙滩色带（岸边10px黄沙晕）──
+  g.append('path').attr('d',rl(mainCoast)).attr('fill','none')
+    .attr('stroke','rgba(195,172,118,0.14)').attr('stroke-width',18)
+    .attr('stroke-linecap','round').attr('stroke-linejoin','round');
+
+  // ── Layer 3: 浅海蓝（4-8m等深线感）──
+  g.append('path').attr('d',rl(mainCoast)).attr('fill','none')
+    .attr('stroke','rgba(82,135,205,0.18)').attr('stroke-width',10)
+    .attr('stroke-linecap','round').attr('stroke-linejoin','round');
+
+  // ── Layer 4a: 主岸线（外侧光晕）──
+  g.append('path').attr('d',rl(mainCoast)).attr('fill','none')
+    .attr('stroke','rgba(80,125,192,0.20)').attr('stroke-width',5)
+    .attr('stroke-linecap','round').attr('stroke-linejoin','round');
+
+  // ── Layer 4b: 主岸线 ──
+  g.append('path').attr('d',rl(mainCoast)).attr('fill','none')
+    .attr('stroke','rgba(65,102,172,0.60)').attr('stroke-width',1.8)
+    .attr('stroke-linecap','round').attr('stroke-linejoin','round');
+
+  // ── Layer 4c: 岸线内高光 ──
+  g.append('path').attr('d',rl(mainCoast)).attr('fill','none')
+    .attr('stroke','rgba(172,215,252,0.16)').attr('stroke-width',0.7)
+    .attr('stroke-linecap','round').attr('stroke-linejoin','round');
+
+  // ── Layer 5: 礁石群（沿岸分布）──
+  const reefZones=[
+    // 渤海口礁石
+    {pts:[[985,198],[992,205],[998,212]]},
+    // 山东半岛礁
+    {pts:[[1028,298],[1035,308],[1030,318]]},
+    {pts:[[1032,342],[1036,352],[1028,358]]},
+    // 苏北浅滩
+    {pts:[[1010,455],[1015,465],[1018,478]]},
+    // 浙闽礁
+    {pts:[[985,568],[990,578],[982,588]]},
+    {pts:[[968,625],[975,635],[965,645]]},
+    // 广东礁
+    {pts:[[908,688],[915,694],[905,698]]},
+  ];
+  reefZones.forEach(({pts:rpts})=>{
+    rpts.forEach(([rx,ry])=>{
+      // 礁石不规则椭圆
+      g.append('ellipse').attr('cx',rx).attr('cy',ry)
+        .attr('rx',2.5+Math.sin(rx)*1).attr('ry',1.5+Math.cos(ry)*0.8)
+        .attr('fill','rgba(178,158,112,0.32)').attr('stroke','rgba(62,100,172,0.28)').attr('stroke-width',0.6);
+      // 礁石水花
+      g.append('path').attr('d',`M${rx-3},${ry} Q${rx},${ry-2.5} ${rx+3},${ry}`)
+        .attr('fill','none').attr('stroke','rgba(185,218,255,0.22)').attr('stroke-width',0.55);
+    });
+  });
+
+  // ── Layer 6: 密集波纹（8行，沿岸外侧分布）──
+  const waveRows=[
+    // 渤海
+    [[980,195],[992,215],[1005,235],[1015,255],[1025,278],[1030,300]],
+    // 黄海北
+    [[1028,322],[1032,345],[1032,368],[1028,390],[1022,412]],
+    // 黄海南
+    [[1015,432],[1012,455],[1010,478],[1008,500],[1005,522]],
+    // 东海北
+    [[1002,542],[998,562],[992,582],[985,602]],
+    // 东海南
+    [[978,622],[970,642],[960,662],[948,680]],
+    // 南海北
+    [[935,695],[918,705],[900,712],[882,716]],
+  ];
+  waveRows.forEach(row=>{
+    row.forEach((p,i)=>{
+      // 每点画2-3条平行弧线（偏离岸边方向）
+      for(let w=0;w<3;w++){
+        const wx=p[0]+8+w*9, wy=p[1]+(i%2)*3;
+        g.append('path').attr('d',`M${wx-5},${wy} Q${wx},${wy-3} ${wx+5},${wy}`)
+          .attr('fill','none')
+          .attr('stroke',`rgba(118,168,228,${0.15-w*0.03})`)
+          .attr('stroke-width',0.6);
+      }
+    });
+  });
+
+  // ── 渤海（内海，详细处理）──
+  const bohaiPts=[
+    [948,108],[968,108],[986,118],[998,132],[1008,148],[1015,162],
+    [1012,175],[1005,188],[995,198],[985,205],[975,208],[965,205],
+    [958,195],[950,182],[944,168],[940,155],[940,138],[942,122],[948,108]
+  ];
+  g.append('path').attr('d','M'+bohaiPts.map(p=>p.join(',')).join(' L')+' Z')
+    .attr('fill','rgba(68,112,195,0.20)').attr('stroke','rgba(62,100,172,0.32)').attr('stroke-width',0.9);
+  // 渤海内波纹（4行）
+  [[968,142],[975,155],[982,168],[972,180],[962,190]].forEach(([wx,wy],i)=>{
+    for(let w=0;w<2;w++){
+      g.append('path').attr('d',`M${wx-7+w*5},${wy} Q${wx+w*3},${wy-3} ${wx+7+w*5},${wy}`)
+        .attr('fill','none').attr('stroke',`rgba(132,178,235,${0.18-w*0.04})`).attr('stroke-width',0.65);
+    }
+  });
+  // 渤海沙滩浅色
+  g.append('path').attr('d',rl(bohaiPts)).attr('fill','none')
+    .attr('stroke','rgba(195,175,125,0.12)').attr('stroke-width',12).attr('stroke-linecap','round');
+
+  // ── 山东半岛（详细）──
+  const shandong=[
+    [990,268],[1005,275],[1018,285],[1028,298],[1032,312],
+    [1028,325],[1018,335],[1005,342],[992,345],[980,342],
+    [970,335],[965,322],[968,308],[975,295],[985,282]
+  ];
+  g.append('path').attr('d',rl(shandong))
+    .attr('fill','rgba(188,172,128,0.10)')
+    .attr('stroke','rgba(65,102,172,0.50)').attr('stroke-width',1.5).attr('stroke-linecap','round');
+  // 半岛内丘陵暗示
+  g.append('path').attr('d',`M990,295 Q1000,285 1012,290 Q1018,298 1010,308`)
+    .attr('fill','none').attr('stroke','rgba(80,55,12,0.12)').attr('stroke-width',1);
+  g.append('text').attr('x',1000).attr('y',308).attr('text-anchor','middle')
+    .attr('font-family','Noto Serif SC,serif').attr('font-size',7.5)
+    .attr('fill','rgba(58,35,5,0.42)').text('山东');
+
+  // ── 辽东半岛 ──
+  const liaodong=[
+    [935,98],[945,110],[952,124],[958,138],[960,152],
+    [955,165],[945,175],[932,180],[920,178],[910,170],
+    [905,158],[908,145],[915,132],[925,120],[932,110]
+  ];
+  g.append('path').attr('d',rl(liaodong))
+    .attr('fill','rgba(188,172,128,0.10)')
+    .attr('stroke','rgba(65,102,172,0.45)').attr('stroke-width',1.4).attr('stroke-linecap','round');
+  // 沙滩色
+  g.append('path').attr('d',rl(liaodong)).attr('fill','none')
+    .attr('stroke','rgba(195,175,125,0.10)').attr('stroke-width',8).attr('stroke-linecap','round');
+
+  // ── 朝鲜半岛 ──
+  const korea=[
+    [972,88],[985,95],[998,105],[1008,118],[1015,132],
+    [1018,148],[1015,162],[1008,175],[998,185],[985,192],
+    [975,195],[965,192],[958,182],[955,168],[958,155],
+    [962,140],[965,125],[968,112],[970,98]
+  ];
+  g.append('path').attr('d',rl(korea))
+    .attr('fill','rgba(182,168,125,0.09)')
+    .attr('stroke','rgba(65,102,172,0.36)').attr('stroke-width',1.2).attr('stroke-linecap','round');
+  g.append('text').attr('x',988).attr('y',148).attr('text-anchor','middle')
+    .attr('font-family','Noto Serif SC,serif').attr('font-size',7.5)
+    .attr('fill','rgba(52,78,152,0.38)').text('辰韩');
+
+  // ── 海南岛（更丰富）──
+  const hainan=[
+    [738,750],[752,745],[768,742],[784,744],[798,750],
+    [808,760],[812,775],[808,788],[798,796],[780,800],
+    [762,800],[748,795],[738,786],[732,773],[732,760]
+  ];
+  g.append('path').attr('d',rl(hainan))
+    .attr('fill','rgba(182,168,120,0.15)')
+    .attr('stroke','rgba(65,102,172,0.44)').attr('stroke-width',1.4).attr('stroke-linecap','round');
+  // 岛内中部山脉线
+  g.append('path').attr('d',`M748,762 Q765,756 782,758 Q795,762 800,772`)
+    .attr('fill','none').attr('stroke','rgba(80,52,12,0.18)').attr('stroke-width',1);
+  // 沙滩
+  g.append('path').attr('d',rl(hainan)).attr('fill','none')
+    .attr('stroke','rgba(210,190,130,0.12)').attr('stroke-width',8).attr('stroke-linecap','round');
+  g.append('text').attr('x',770).attr('y',774).attr('text-anchor','middle')
+    .attr('font-family','Noto Serif SC,serif').attr('font-size',8.5)
+    .attr('fill','rgba(52,78,152,0.52)').text('海南');
+
+  // ── 台湾岛（夷洲）──
+  const taiwan=[
+    [1065,525],[1076,530],[1084,542],[1088,558],[1086,574],
+    [1080,588],[1070,598],[1056,602],[1044,596],[1035,582],
+    [1030,566],[1032,550],[1038,536],[1050,524],[1060,520]
+  ];
+  g.append('path').attr('d',rl(taiwan))
+    .attr('fill','rgba(182,168,120,0.15)')
+    .attr('stroke','rgba(65,102,172,0.42)').attr('stroke-width',1.3).attr('stroke-linecap','round');
+  // 台湾中央山脉
+  g.append('path').attr('d',`M1050,528 L1062,540 L1070,555 L1072,572 L1065,590`)
+    .attr('fill','none').attr('stroke','rgba(75,48,10,0.22)').attr('stroke-width',1.3);
+  g.append('text').attr('x',1058).attr('y',564).attr('text-anchor','middle')
+    .attr('font-family','Noto Serif SC,serif').attr('font-size',8.5)
+    .attr('fill','rgba(52,78,152,0.50)').text('夷  洲');
+
+  // ── 南海北部湾 + 海南海峡 ──
+  const southCoast=[
+    [620,712],[608,718],[595,724],[580,728],[562,730],
+    [545,728],[530,722],[518,715],[508,710],[495,708],
+    [480,710],[465,715],[450,722]
+  ];
+  g.append('path').attr('d',rl(southCoast))
+    .attr('fill','rgba(68,112,195,0.08)')
+    .attr('stroke','rgba(65,102,172,0.42)').attr('stroke-width',1.4).attr('stroke-linecap','round');
+  g.append('path').attr('d',rl(southCoast)).attr('fill','none')
+    .attr('stroke','rgba(195,175,125,0.10)').attr('stroke-width',10).attr('stroke-linecap','round');
+
+  // ── 南海填色 + 诸岛 + 波纹 ──
+  g.append('rect').attr('x',450).attr('y',712).attr('width',620).attr('height',198)
+    .attr('fill','rgba(62,105,182,0.10)').attr('stroke','none');
+
+  // 南海波纹（4行）
+  [[540,740,80],[620,755,90],[700,750,85],[780,742,88],[860,746,78]].forEach(([wx,wy,ww])=>{
+    for(let r=0;r<3;r++){
+      g.append('path').attr('d',`M${wx-ww/2},${wy+r*8} Q${wx},${wy+r*8-4} ${wx+ww/2},${wy+r*8}`)
+        .attr('fill','none').attr('stroke',`rgba(110,162,225,${0.13-r*0.03})`).attr('stroke-width',0.65);
+    }
+  });
+
+  // 南海诸岛（西沙/南沙示意）
+  [[722,762],[758,780],[688,770],[808,762],[848,755]].forEach(([ix,iy],i)=>{
+    g.append('circle').attr('cx',ix).attr('cy',iy).attr('r',i===0?3.5:2)
+      .attr('fill','rgba(185,168,122,0.38)').attr('stroke','rgba(65,102,172,0.32)').attr('stroke-width',0.6);
+    if(i===0) g.append('text').attr('x',ix+8).attr('y',iy+1).attr('font-size',7.5)
+      .attr('font-family','Noto Serif SC,serif').attr('fill','rgba(52,78,152,0.45)').text('西沙');
+  });
+
+  // ── 黄海沙洲/暗礁 ──
+  [[1014,325],[1022,352],[1028,380],[1030,408],[1026,435]].forEach(([rx,ry])=>{
+    g.append('ellipse').attr('cx',rx).attr('cy',ry)
+      .attr('rx',3).attr('ry',1.8)
+      .attr('fill','rgba(182,160,112,0.28)').attr('stroke','rgba(65,102,172,0.22)').attr('stroke-width',0.5);
+  });
+
+  // ── 海名标注 ──
+  [['渤 海',975,162],['黄 海',1095,358],['东 海',1148,542],['南 海',942,772]].forEach(([t,x,y])=>{
+    g.append('text').attr('x',x).attr('y',y).attr('text-anchor','middle')
+      .attr('font-family','Noto Serif SC,serif').attr('font-size',14)
+      .attr('fill','rgba(52,82,162,0.36)').attr('letter-spacing',4).text(t);
+    // 海名下加横波纹装饰
+    g.append('path').attr('d',`M${x-20},${y+5} Q${x},${y+2} ${x+20},${y+5}`)
+      .attr('fill','none').attr('stroke','rgba(100,148,215,0.18)').attr('stroke-width',0.8);
+  });
+}
+
+// ─────────────────────────────────────────────────────────
+//  湖泊详细绘制 v2
+//  四层：深水区 → 湖面填色 → 波纹/涟漪 → 岸边芦苇/沙洲
+// ─────────────────────────────────────────────────────────
+function drawDetailedLakes(g) {
+  const rl=d3.line().curve(d3.curveCatmullRom.alpha(0.5));
+
+  function lake(opts) {
+    const {
+      pts=null, cx, cy, rx, ry,
+      label, labelDy=0,
+      fill='rgba(72,112,195,0.26)',
+      stroke='rgba(52,88,178,0.48)',
+      deepFill='rgba(48,82,168,0.16)',
+      waveCnt=3,
+      reeds=true,
+    }=opts;
+
+    const lg=g.append('g').attr('class','lake');
+
+    // 1. 深水核心
+    lg.append('ellipse').attr('cx',cx).attr('cy',cy)
+      .attr('rx',rx*0.52).attr('ry',ry*0.52)
+      .attr('fill',deepFill).attr('stroke','none');
+
+    // 2. 湖面轮廓
+    if(pts){
+      lg.append('path').attr('d',rl([...pts,pts[0]])).attr('fill',fill)
+        .attr('stroke',stroke).attr('stroke-width',1.1);
+    } else {
+      lg.append('ellipse').attr('cx',cx).attr('cy',cy).attr('rx',rx).attr('ry',ry)
+        .attr('fill',fill).attr('stroke',stroke).attr('stroke-width',1.1);
+    }
+
+    // 3a. 水面高光弧（湖面反光）
+    lg.append('path')
+      .attr('d',`M${cx-rx*0.52},${cy-ry*0.35} Q${cx-rx*0.1},${cy-ry*0.62} ${cx+rx*0.52},${cy-ry*0.35}`)
+      .attr('fill','none').attr('stroke','rgba(195,225,255,0.22)').attr('stroke-width',1.3);
+
+    // 3b. 多圈同心波纹
+    for(let i=0;i<waveCnt;i++){
+      const s=0.35+i*0.22;
+      lg.append('path')
+        .attr('d',`M${cx-rx*s*0.95},${cy} Q${cx},${cy-ry*s*0.5} ${cx+rx*s*0.95},${cy}`)
+        .attr('fill','none').attr('stroke',`rgba(115,162,228,${0.14-i*0.03})`)
+        .attr('stroke-width',0.7);
+    }
+
+    // 3c. 水面浮光（斜线高光）
+    for(let i=0;i<4;i++){
+      const hx=cx-rx*0.6+i*rx*0.35, hy=cy-ry*0.2;
+      lg.append('line')
+        .attr('x1',hx).attr('y1',hy).attr('x2',hx+rx*0.12).attr('y2',hy+ry*0.08)
+        .attr('stroke','rgba(185,218,252,0.12)').attr('stroke-width',0.55);
+    }
+
+    // 4. 岸边芦苇（竖线小丛）
+    if(reeds){
+      const reedPts=[
+        [cx-rx*0.88, cy-ry*0.15],[cx-rx*0.75, cy+ry*0.55],
+        [cx+rx*0.82, cy+ry*0.42],[cx+rx*0.62, cy-ry*0.48],
+      ];
+      reedPts.forEach(([rx2,ry2])=>{
+        for(let r=0;r<4;r++){
+          const bx=rx2+(r-1.5)*2.2, by=ry2;
+          lg.append('line').attr('x1',bx).attr('y1',by).attr('x2',bx+0.5).attr('y2',by-4.5)
+            .attr('stroke','rgba(72,92,38,0.38)').attr('stroke-width',0.55);
+          lg.append('ellipse').attr('cx',bx+0.5).attr('cy',by-5).attr('rx',0.9).attr('ry',1.6)
+            .attr('fill','rgba(88,112,42,0.32)').attr('stroke','none');
+        }
+      });
+    }
+
+    // 标注
+    lg.append('text').attr('x',cx+0.5).attr('y',cy+labelDy+0.5).attr('text-anchor','middle')
+      .attr('font-family','Noto Serif SC,serif').attr('font-size',8.5)
+      .attr('fill','rgba(255,248,210,0.25)').text(label);
+    lg.append('text').attr('x',cx).attr('y',cy+labelDy).attr('text-anchor','middle')
+      .attr('font-family','Noto Serif SC,serif').attr('font-size',8.5)
+      .attr('fill','rgba(42,68,155,0.72)').text(label);
+  }
+
+  // ── 洞庭湖（最大，不规则） ──
+  lake({
+    pts:[[612,518],[625,514],[640,512],[655,515],[665,522],[668,532],
+         [664,542],[652,548],[638,550],[622,547],[612,538],[609,527]],
+    cx:638,cy:532,rx:30,ry:20,label:'洞庭湖',labelDy:2,waveCnt:4,
+    fill:'rgba(72,112,195,0.28)',deep:'rgba(48,82,168,0.18)',
+  });
+
+  // ── 鄱阳湖（细长南北向） ──
+  lake({
+    pts:[[782,504],[793,500],[804,504],[812,512],[816,524],
+         [818,538],[815,550],[808,558],[796,562],[785,558],
+         [778,548],[775,534],[777,520],[780,510]],
+    cx:796,cy:532,rx:22,ry:32,label:'鄱阳湖',labelDy:2,waveCnt:3,
+    fill:'rgba(72,112,195,0.26)',
+  });
+
+  // ── 太湖（吴国腹地，江南最大湖） ──
+  lake({
+    pts:[[882,488],[895,484],[908,485],[918,492],[922,502],
+         [920,512],[912,518],[898,520],[884,516],[877,506],[878,496]],
+    cx:900,cy:502,rx:22,ry:18,label:'太  湖',labelDy:1,waveCnt:3,
+    fill:'rgba(72,112,195,0.24)',reeds:true,
+  });
+
+  // ── 巢湖（合肥南） ──
+  lake({cx:810,cy:472,rx:14,ry:9,label:'巢湖',labelDy:1,waveCnt:2,
+    fill:'rgba(72,112,195,0.20)',reeds:false});
+
+  // ── 云梦泽（荆州北古泽，已消退但标出） ──
+  lake({
+    pts:[[598,485],[612,480],[628,482],[638,488],[642,498],
+         [636,508],[620,510],[604,506],[596,496]],
+    cx:620,cy:495,rx:24,ry:15,label:'云梦泽',labelDy:1,waveCnt:2,
+    fill:'rgba(72,112,195,0.16)',stroke:'rgba(52,88,178,0.30)',reeds:true,
+  });
+
+  // ── 青海湖（西北，祁连山南） ──
+  lake({cx:215,cy:248,rx:22,ry:14,label:'青海湖',labelDy:1,waveCnt:3,
+    fill:'rgba(65,105,188,0.28)',stroke:'rgba(48,85,172,0.45)',reeds:false});
+}
+
+// 关隘 SVG model: a narrow stone gate set into a mountain wall
+function passModel(active) {
+  const ac = active ? '#c05020' : null;
+  const stoneC = ac ? 'rgba(180,70,20,0.8)' : 'rgba(80,52,15,0.82)';
+  const stoneF = ac ? 'rgba(200,90,30,0.18)' : 'rgba(110,72,22,0.22)';
+  const archC  = ac ? '#c84020' : 'rgba(70,42,10,0.9)';
+  return `<g>
+    <!-- glow -->
+    <circle r="12" fill="${ac?'rgba(220,80,20,0.18)':'rgba(180,130,40,0.1)'}"/>
+    <!-- mountain flanks -->
+    <polygon points="-18,-2 -12,-14 -4,-2" fill="${stoneF}" stroke="${stoneC}" stroke-width="0.8"/>
+    <polygon points="18,-2 12,-14 4,-2" fill="${stoneF}" stroke="${stoneC}" stroke-width="0.8"/>
+    <!-- cliff highlight -->
+    <line x1="-12" y1="-14" x2="-4" y2="-2" stroke="rgba(230,200,140,0.2)" stroke-width="0.7"/>
+    <line x1="12" y1="-14" x2="4" y2="-2" stroke="rgba(230,200,140,0.2)" stroke-width="0.7"/>
+    <!-- gate wall spanning -->
+    <rect x="-8" y="-4" width="16" height="9" rx="0.5" fill="${stoneF}" stroke="${stoneC}" stroke-width="1.1"/>
+    <!-- battlements -->
+    ${[-7,-4,-1,2,5].map(px=>`<rect x="${px}" y="-6" width="2.2" height="2.5" fill="${stoneC}"/>`).join('')}
+    <!-- arch gate -->
+    <path d="M-3,5 L-3,-1 Q0,-4 3,-1 L3,5 Z" fill="rgba(30,18,4,0.75)" stroke="${archC}" stroke-width="0.8"/>
+    <!-- gate doors hint -->
+    <line x1="-3" y1="5" x2="-3" y2="-1" stroke="${archC}" stroke-width="0.5"/>
+    <line x1="3" y1="5" x2="3" y2="-1" stroke="${archC}" stroke-width="0.5"/>
+    <line x1="0" y1="5" x2="0" y2="0" stroke="${archC}" stroke-width="0.4" opacity="0.5"/>
+    <!-- parapet flag -->
+    <line x1="0" y1="-6" x2="0" y2="-11" stroke="${stoneC}" stroke-width="0.8"/>
+    <polygon points="0,-11 4.5,-9 0,-7" fill="${ac||'rgba(175,30,10,0.72)'}"/>
+  </g>`;
+}
+
+function drawPasses(g) {
+  // Historical strategic passes of the Three Kingdoms period
+  const PASSES = [
+    {name:'潼关',    x:548, y:310, desc:'关中门户，扼守东西要道'},
+    {name:'武关',    x:528, y:352, desc:'秦岭南侧险关，连通关中与荆州'},
+    {name:'函谷关',  x:590, y:318, desc:'东入关中第一关'},
+    {name:'散关',    x:468, y:345, desc:'关中西南门户，诸葛亮北伐必经'},
+    {name:'阳平关',  x:430, y:438, desc:'汉中北大门，蜀魏争夺要冲'},
+    {name:'剑阁',    x:382, y:492, desc:'蜀道咽喉，一夫当关之险'},
+    {name:'虎牢关',  x:632, y:328, desc:'洛阳东方门户，古称天下第一关'},
+    {name:'官渡津',  x:700, y:358, desc:'黄河渡口，官渡之战主战场'},
+    {name:'葭萌关',  x:398, y:462, desc:'蜀道北端要塞，进出汉中锁钥'},
+    {name:'夷陵口',  x:542, y:508, desc:'荆州入川门户，夷陵之战要地'},
+    {name:'陈仓',    x:448, y:318, desc:'关中西出要道，诸葛亮攻魏之地'},
+  ];
+
+  const passG = g.append('g').attr('class','passes-layer');
+
+  PASSES.forEach(p=>{
+    const isActive = filterLoc===p.name;
+    const pg = passG.append('g')
+      .attr('transform',`translate(${p.x},${p.y})`)
+      .style('cursor','pointer');
+
+    // Inject pass model SVG
+    pg.html(passModel(isActive));
+
+    // Label — offset to avoid overlap with city labels
+    const lx = 18, ly = -2;
+    pg.append('text').attr('x',lx+0.6).attr('y',ly+0.6).attr('text-anchor','start')
+      .attr('font-family','Noto Serif SC,serif').attr('font-size',8.5)
+      .attr('fill','rgba(255,235,185,0.3)').text(p.name);
+    pg.append('text').attr('x',lx).attr('y',ly).attr('text-anchor','start')
+      .attr('font-family','Noto Serif SC,serif').attr('font-size',8.5)
+      .attr('fill',isActive?'#b84020':'rgba(80,45,8,0.82)')
+      .attr('font-weight','600').attr('font-style','italic').text(p.name);
+
+    pg.on('click',()=>toggleLF(p.name))
+      .on('mouseover',(e)=>showTip(e,`关隘：${p.name}`,p.desc))
+      .on('mouseout',hideTip);
+  });
+}
+
+function drawTerritories(g) {
+  const terrData=[
+    {name:'魏',fill:'rgba(75,115,180,0.07)',stroke:'rgba(75,115,180,0.3)',lx:720,ly:285,
+     d:'M260,80 L520,75 L700,78 L920,82 L1080,90 L1180,108 L1220,158 L1225,218 L1210,285 L1165,322 L1110,352 L985,378 L928,418 L868,460 L820,480 L785,468 L755,452 L726,440 L700,448 L672,455 L648,462 L620,452 L590,438 L562,422 L535,408 L512,388 L500,362 L488,340 L470,322 L452,315 L432,318 L410,325 L388,338 L365,352 L348,362 L328,356 L308,346 L285,332 L262,312 L242,288 L236,258 L240,222 L248,185 L255,148 L260,112 Z'},
+    {name:'蜀',fill:'rgba(165,58,58,0.07)',stroke:'rgba(165,58,58,0.3)',lx:380,ly:558,
+     d:'M242,288 L262,312 L285,332 L308,346 L328,356 L348,362 L365,352 L388,338 L410,325 L432,318 L452,315 L470,322 L488,340 L500,362 L512,388 L522,418 L532,452 L528,488 L520,515 L518,535 L528,555 L538,575 L528,598 L508,622 L478,648 L448,660 L412,670 L375,660 L345,638 L315,612 L292,582 L275,555 L262,525 L252,495 L246,468 L242,442 L240,418 L238,392 L238,365 L240,335 Z'},
+    {name:'吴',fill:'rgba(58,165,90,0.07)',stroke:'rgba(58,165,90,0.3)',lx:800,ly:555,
+     d:'M512,388 L535,408 L562,422 L590,438 L620,452 L648,462 L672,455 L700,448 L726,440 L755,452 L785,468 L820,480 L868,460 L928,418 L985,408 L1048,398 L1098,388 L1142,382 L1152,408 L1132,440 L1112,475 L1072,508 L1032,532 L990,558 L950,578 L910,595 L868,608 L828,612 L788,605 L758,588 L738,568 L720,545 L708,522 L698,510 L682,518 L668,528 L650,525 L632,512 L618,502 L600,522 L580,542 L565,558 L548,548 L534,528 L522,508 L520,478 L524,452 L522,418 Z'},
+  ];
+  terrData.forEach(t=>{
+    g.append('path').attr('d',t.d+' Z').attr('fill',t.fill)
+      .attr('stroke',t.stroke).attr('stroke-width',1.5).attr('stroke-dasharray','7,4').attr('stroke-linejoin','round');
+    g.append('text').attr('x',t.lx).attr('y',t.ly).attr('text-anchor','middle')
+      .attr('font-family','Ma Shan Zheng,serif').attr('font-size',55).attr('fill','rgba(50,25,4,0.055)').attr('letter-spacing',4).text(t.name);
+  });
+}
+
+// ── SVG miniature city model generator ──
+function cityModel(tier, active) {
+  const ac = active ? '#c83000' : null;
+  const wallC = ac || 'rgba(90,48,8,0.85)';
+  const roofC = ac ? '#a02000' : 'rgba(115,55,10,0.92)';
+  const wallF = ac ? 'rgba(200,80,30,0.18)' : 'rgba(130,75,20,0.2)';
+  const tileC = ac ? '#c04020' : 'rgba(100,45,8,0.88)';
+  const glow  = ac ? 'rgba(220,80,20,0.20)' : 'rgba(200,155,50,0.10)';
+
+  // All coordinates scaled to ~60% of previous size
+  if(tier===1) {
+    return `<g>
+      <circle r="12" fill="${glow}"/>
+      <rect x="-8" y="-6" width="16" height="12" rx="0.8" fill="${wallF}" stroke="${wallC}" stroke-width="1.1"/>
+      <rect x="-9" y="-7.5" width="2.5" height="2" fill="${wallC}"/>
+      <rect x="-3.5" y="-7.5" width="2.5" height="2" fill="${wallC}"/>
+      <rect x="1" y="-7.5" width="2.5" height="2" fill="${wallC}"/>
+      <rect x="6" y="-7.5" width="2.5" height="2" fill="${wallC}"/>
+      <rect x="-5" y="-5" width="10" height="8" rx="0.8" fill="${wallF}" stroke="${wallC}" stroke-width="0.7"/>
+      <rect x="-3" y="-6" width="6" height="5" rx="0.4" fill="rgba(165,108,32,0.6)" stroke="${wallC}" stroke-width="0.6"/>
+      <polygon points="0,-10 -5,-5 5,-5" fill="${roofC}" stroke="${tileC}" stroke-width="0.5"/>
+      <polygon points="0,-10 -3,-6 3,-6" fill="${tileC}" opacity="0.5"/>
+      <circle cx="-2" cy="-5.5" r="0.6" fill="${tileC}"/>
+      <circle cx="0" cy="-5.5" r="0.6" fill="${tileC}"/>
+      <circle cx="2" cy="-5.5" r="0.6" fill="${tileC}"/>
+      <rect x="-11" y="-5" width="3" height="4" fill="rgba(145,92,22,0.55)" stroke="${wallC}" stroke-width="0.5"/>
+      <polygon points="-9.5,-7 -12,-4.5 -7,-4.5" fill="${roofC}" stroke="${tileC}" stroke-width="0.3"/>
+      <rect x="8" y="-5" width="3" height="4" fill="rgba(145,92,22,0.55)" stroke="${wallC}" stroke-width="0.5"/>
+      <polygon points="9.5,-7 7,-4.5 12,-4.5" fill="${roofC}" stroke="${tileC}" stroke-width="0.3"/>
+      <path d="M-1.5,6 Q0,4.5 1.5,6" fill="${roofC}" stroke="${wallC}" stroke-width="0.4"/>
+      <line x1="0" y1="-10" x2="0" y2="-13" stroke="${wallC}" stroke-width="0.7"/>
+      <polygon points="0,-13 3.5,-11.5 0,-10" fill="${ac||'rgba(185,32,10,0.75)'}"/>
+    </g>`;
+  }
+  if(tier===2) {
+    return `<g>
+      <circle r="8" fill="${glow}"/>
+      <rect x="-5.5" y="-3" width="11" height="7.5" rx="0.7" fill="${wallF}" stroke="${wallC}" stroke-width="0.9"/>
+      <rect x="-5.5" y="-5" width="2" height="2" fill="${wallC}"/>
+      <rect x="-1.5" y="-5" width="2" height="2" fill="${wallC}"/>
+      <rect x="2" y="-5" width="2" height="2" fill="${wallC}"/>
+      <rect x="-2.8" y="-5.5" width="5.5" height="4.5" rx="0.4" fill="rgba(155,98,28,0.6)" stroke="${wallC}" stroke-width="0.6"/>
+      <polygon points="0,-8.5 -4.5,-4.5 4.5,-4.5" fill="${roofC}" stroke="${tileC}" stroke-width="0.4"/>
+      <polygon points="0,-8.5 -2.5,-5.5 2.5,-5.5" fill="${tileC}" opacity="0.4"/>
+      <circle cx="-1.8" cy="-5.2" r="0.55" fill="${tileC}"/>
+      <circle cx="1.8" cy="-5.2" r="0.55" fill="${tileC}"/>
+      <path d="M-1.2,4.5 Q0,3 1.2,4.5" fill="${roofC}" stroke="${wallC}" stroke-width="0.4"/>
+      <line x1="0" y1="-8.5" x2="0" y2="-11" stroke="${wallC}" stroke-width="0.55"/>
+      <polygon points="0,-11 2.8,-9.8 0,-8.5" fill="${ac||'rgba(165,28,8,0.68)'}"/>
+    </g>`;
+  }
+  return `<g>
+    <circle r="5" fill="${glow}"/>
+    <rect x="-3.5" y="-2" width="7" height="5" rx="0.4" fill="${wallF}" stroke="${wallC}" stroke-width="0.7"/>
+    <rect x="-1.8" y="-2" width="1.8" height="2" fill="${wallC}" opacity="0.6"/>
+    <rect x="0.2" y="-2" width="1.8" height="2" fill="${wallC}" opacity="0.6"/>
+    <rect x="-1.5" y="-4.5" width="3" height="3" rx="0.2" fill="rgba(140,88,20,0.55)" stroke="${wallC}" stroke-width="0.45"/>
+    <polygon points="0,-6.5 -2.5,-3.5 2.5,-3.5" fill="${roofC}" stroke="${tileC}" stroke-width="0.3"/>
+    <line x1="0" y1="-6.5" x2="0" y2="-8.5" stroke="${wallC}" stroke-width="0.5"/>
+    <polygon points="0,-8.5 2,-7.5 0,-6.5" fill="${ac||'rgba(140,22,6,0.6)'}"/>
+  </g>`;
+}
+
+function drawCities(g) {
+  MAP_CITIES.forEach(city=>{
+    const isActive=filterLoc===city.name;
+    const cg=g.append('g').datum(city).attr('transform',`translate(${city.x},${city.y})`);
+    cg.html(cityModel(city.tier, isActive));
+    // Smaller labels
+    const lsz=city.tier===1?9.5:city.tier===2?8.5:7.5;
+    const ly=city.tier===1?15:city.tier===2?12:10;
+    cg.append('text').attr('x',0.6).attr('y',ly+0.6).attr('text-anchor','middle')
+      .attr('font-family','Noto Serif SC,serif').attr('font-size',lsz)
+      .attr('fill','rgba(255,240,195,0.32)').text(city.name);
+    cg.append('text').attr('x',0).attr('y',ly).attr('text-anchor','middle')
+      .attr('font-family','Noto Serif SC,serif').attr('font-size',lsz)
+      .attr('fill',isActive?'#7a1800':'rgba(45,20,3,.88)')
+      .attr('font-weight',isActive||city.tier===1?'700':'400').text(city.name);
+    cg.style('cursor','pointer')
+      .on('click',()=>toggleLF(city.name))
+      .on('mouseover',(e)=>showTip(e,city.name,'点击筛选在此地的人物'))
+      .on('mouseout',hideTip);
+  });
+}
+
+function drawBattles(g) {
+  const active=BATTLES.filter(b=>b.year===currentYear&&(!filterYear||b.year===filterYear));
+  active.forEach(b=>{
+    const city=cityById[b.loc];if(!city)return;
+    const eg=g.append('g').attr('transform',`translate(${city.x},${city.y-18})`)
+      .style('cursor','pointer')
+      .on('mouseover',(e)=>showTip(e,`⚔ ${b.name}`,`${b.desc}（${b.year}年）`))
+      .on('mouseout',hideTip)
+      .on('click',()=>{toggleYF(b.year);toggleLF(b.loc);});
+    eg.append('circle').attr('r',11).attr('fill','rgba(140,18,8,.18)').attr('stroke','rgba(160,35,18,.8)').attr('stroke-width',1.5);
+    eg.append('text').attr('text-anchor','middle').attr('dominant-baseline','central').attr('font-size',13).attr('fill','#b01808').text('⚔');
+    const pulse=eg.append('circle').attr('r',11).attr('fill','none').attr('stroke','rgba(200,45,20,.4)').attr('stroke-width',1.5);
+    function animPulse(){pulse.attr('r',11).attr('opacity',.7).transition().duration(1600).attr('r',22).attr('opacity',0).on('end',animPulse);}
+    animPulse();
+  });
+}
+
+// 每个人物专属轨迹色（与势力色区分，保证互相可辨）
+const TRAIL_COLORS = [
+  '#e05c5c','#e07a2a','#d4b030','#6ab84e','#3abf9a',
+  '#4a9de0','#7c65d8','#d45ca8','#8ab040','#e04080',
+  '#40c0c8','#c87030','#5080e0','#b05050','#50b878',
+];
+const _trailColorCache = {};
+function getTrailColor(char) {
+  if(_trailColorCache[char.id]) return _trailColorCache[char.id];
+  // 基于 id hash 稳定分配
+  const hash = char.id.split('').reduce((a,c)=>a+c.charCodeAt(0),0);
+  _trailColorCache[char.id] = TRAIL_COLORS[hash % TRAIL_COLORS.length];
+  return _trailColorCache[char.id];
+}
+
+function drawCharacters(g) {
+  const filteredChars = getFilteredChars();
+
+  // 所有有事件记录的人物均显示（去世的停在最后位置，略灰）
+  let visChars;
+  if(selectedChar) {
+    visChars = isAlive(selectedChar, currentYear) ? [selectedChar] : [];
+  } else {
+    const pool = filteredChars || characters.filter(c => isAlive(c, currentYear));
+    visChars = pool;
+  }
+
+  // ── 为每个人物注册箭头 marker ──
+  const defs = g.node().closest('svg').querySelector('defs') || g.append('defs').node();
+  visChars.forEach(char => {
+    const f   = getFaction(char, currentYear);
+    const fac = FAC[f] || FAC['群雄'];
+    const mid = `arrow-${char.id}`;
+    // 如已存在则跳过
+    if(document.getElementById(mid)) return;
+    const marker = document.createElementNS('http://www.w3.org/2000/svg','marker');
+    marker.setAttribute('id', mid);
+    marker.setAttribute('viewBox','0 0 10 10');
+    marker.setAttribute('refX','8');
+    marker.setAttribute('refY','5');
+    marker.setAttribute('markerWidth','6');
+    marker.setAttribute('markerHeight','6');
+    marker.setAttribute('orient','auto');
+    const arrow = document.createElementNS('http://www.w3.org/2000/svg','path');
+    arrow.setAttribute('d','M 0 1.5 L 8 5 L 0 8.5 Z');
+    arrow.setAttribute('fill', getTrailColor(char));
+    marker.appendChild(arrow);
+    defs.appendChild(marker);
+  });
+
+  const trailLine = d3.line().curve(d3.curveCatmullRom.alpha(0.5));
+
+  visChars.forEach(char => {
+    const ev   = getEvAt(char, currentYear); if(!ev) return;
+    const city = cityById[ev.loc];           if(!city) return;
+    const f    = getFaction(char, currentYear);
+    const fac  = FAC[f] || FAC['群雄'];
+    const isSel  = selectedChar?.id === char.id;
+    const trailColor = getTrailColor(char);  // 专属轨迹色
+
+    // ── 轨迹线（仅显示到当前年份的事件路径）──
+    const trail = char.events.filter(e => e.year <= currentYear);
+    if(trail.length > 1) {
+      const pts = trail.map(e => cityById[e.loc]).filter(Boolean).map(c => [c.x, c.y]);
+      // 去重相邻相同城市
+      const dedupe = pts.filter((p,i)=> i===0 || !(p[0]===pts[i-1][0] && p[1]===pts[i-1][1]));
+      if(dedupe.length > 1) {
+        const pathD = trailLine(dedupe);
+
+        // 光晕底层
+        g.append('path').attr('d', pathD).attr('fill','none')
+          .attr('stroke', trailColor).attr('stroke-width', 7)
+          .attr('stroke-linecap','round').attr('stroke-linejoin','round')
+          .attr('opacity', 0.12);
+
+        // 主轨迹线
+        g.append('path').attr('d', pathD).attr('fill','none')
+          .attr('stroke', trailColor).attr('stroke-width', 2.2)
+          .attr('stroke-linecap','round').attr('stroke-linejoin','round')
+          .attr('opacity', isSel ? 0.92 : 0.55)
+                    .attr('marker-end', `url(#arrow-${char.id})`);
+
+        // 起点小圆
+        const start = dedupe[0];
+        g.append('circle')
+          .attr('cx', start[0]).attr('cy', start[1]).attr('r', 4)
+          .attr('fill', trailColor).attr('opacity', isSel ? 0.85 : 0.5)
+          .attr('stroke', '#fff').attr('stroke-width', 1);
+
+        // 中间节点（每个经过地点）
+        dedupe.slice(1, -1).forEach(p => {
+          g.append('circle')
+            .attr('cx', p[0]).attr('cy', p[1]).attr('r', 2.8)
+            .attr('fill', trailColor).attr('opacity', isSel ? 0.7 : 0.4)
+            .attr('stroke', '#fff').attr('stroke-width', 0.8);
+        });
+      }
+    }
+
+    // ── 人物头像 ──
+    const jx = (char.id.charCodeAt(0) % 9) - 4;
+    const jy = (char.id.charCodeAt(1) % 9) - 4;
+    const mg = g.append('g')
+      .attr('transform', `translate(${city.x+jx},${city.y+jy-28})`)
+      .style('cursor','pointer')
+      ;
+
+    // 阴影
+    mg.append('circle').attr('r',16).attr('cx',1.5).attr('cy',2)
+      .attr('fill','rgba(0,0,0,0.25)');
+
+    // 背景底色
+    mg.append('circle').attr('r',16).attr('fill', fac.bg);
+
+    const clipId = `clip-${char.id}`;
+    const svgDefs = g.node().closest('svg').querySelector('defs');
+    if(svgDefs && !document.getElementById(clipId)) {
+      const cp = document.createElementNS('http://www.w3.org/2000/svg','clipPath');
+      cp.setAttribute('id', clipId);
+      const cl = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      cl.setAttribute('r','16'); cl.setAttribute('cx','0'); cl.setAttribute('cy','0');
+      cp.appendChild(cl); svgDefs.appendChild(cp);
+    }
+
+    // 图像比clipPath圆略大，stroke外边缘与clip圆重合，无缝隙
+    const imgSrc = char.image_path
+      ? resolveImagePath(char.image_path)
+      : 'data:image/svg+xml,' + encodeURIComponent(charPortrait(char, 32));
+    mg.append('image')
+      .attr('href', imgSrc)
+      .attr('x',-16).attr('y',-16).attr('width',32).attr('height',32)
+      .attr('preserveAspectRatio','xMidYMin slice')
+      .attr('clip-path',`url(#${clipId})`);
+
+    // 边框圆 r=16，stroke-width=2 → stroke 内边缘在 r=15，紧贴图像
+    if(isSel) {
+      mg.append('circle').attr('r',19).attr('fill','none')
+        .attr('stroke', fac.color).attr('stroke-width',2.5).attr('opacity',0.75);
+    }
+    mg.append('circle').attr('r',16).attr('fill','none')
+      .attr('stroke', fac.color).attr('stroke-width',2);
+
+    mg.on('click', e => { e.stopPropagation(); selectChar(char); })
+      .on('mouseover', e => showTip(e, char.name, `${ev.loc} · ${ev.desc}`))
+      .on('mouseout', hideTip);
+  });
+}
+
+function drawCompassRose(g) {
+  const cr=g.append('g').attr('transform',`translate(${MW-80},${MH-85})`);
+  cr.append('circle').attr('r',35).attr('fill','rgba(180,135,40,0.1)').attr('stroke','rgba(100,65,10,0.45)').attr('stroke-width',1.5);
+  cr.append('circle').attr('r',26).attr('fill','none').attr('stroke','rgba(100,65,10,0.3)').attr('stroke-width',0.8);
+  for(let a=0;a<360;a+=45){
+    const rad=a*Math.PI/180;
+    cr.append('line').attr('x1',0).attr('y1',0).attr('x2',Math.sin(rad)*30).attr('y2',-Math.cos(rad)*30)
+      .attr('stroke','rgba(100,65,10,0.22)').attr('stroke-width',0.8);
+  }
+  cr.append('polygon').attr('points','0,-30 -5,-14 5,-14').attr('fill','rgba(155,30,15,0.75)');
+  cr.append('polygon').attr('points','0,30 -5,14 5,14').attr('fill','rgba(85,52,8,0.55)');
+  cr.append('polygon').attr('points','30,0 14,-5 14,5').attr('fill','rgba(85,52,8,0.55)');
+  cr.append('polygon').attr('points','-30,0 -14,-5 -14,5').attr('fill','rgba(85,52,8,0.55)');
+  cr.append('circle').attr('r',5).attr('fill','rgba(100,65,10,0.6)');
+  [['北',0,-42],['南',0,46],['东',46,4],['西',-48,4]].forEach(([t,dx,dy])=>{
+    cr.append('text').attr('x',dx).attr('y',dy).attr('text-anchor','middle').attr('dominant-baseline','central')
+      .attr('font-family','Noto Serif SC,serif').attr('font-size',12).attr('fill','rgba(65,38,4,0.75)').text(t);
+  });
+}
+
+function drawScaleBar(g,bm) {
+  const sbx=bm+28,sby=MH-bm-22;
+  g.append('text').attr('x',sbx).attr('y',sby-10).attr('font-family','Noto Serif SC,serif').attr('font-size',9).attr('fill','rgba(65,38,4,0.55)').text('比例尺');
+  g.append('rect').attr('x',sbx).attr('y',sby-4).attr('width',90).attr('height',7).attr('fill','rgba(80,48,8,.3)').attr('stroke','rgba(65,38,4,.4)').attr('stroke-width',0.8);
+  g.append('rect').attr('x',sbx).attr('y',sby-4).attr('width',45).attr('height',7).attr('fill','rgba(80,48,8,.5)');
+  g.append('text').attr('x',sbx+90).attr('y',sby+8).attr('font-family','Noto Serif SC,serif').attr('font-size',8).attr('fill','rgba(65,38,4,.5)').text('千里');
+}
+
+function drawLegendBox(g,bm) {
+  const lx=bm+28,ly=MH-bm-148;
+  g.append('rect').attr('x',lx-6).attr('y',ly-16).attr('width',140).attr('height',118)
+    .attr('fill','rgba(200,165,80,.15)').attr('stroke','rgba(90,58,8,.4)').attr('stroke-width',1).attr('rx',2);
+  g.append('text').attr('x',lx+64).attr('y',ly-2).attr('text-anchor','middle').attr('font-family','Noto Serif SC,serif').attr('font-size',9).attr('fill','rgba(65,38,4,.7)').attr('letter-spacing',2).text('图  例');
+  [{color:'rgba(75,115,180,0.55)',label:'魏国势力'},{color:'rgba(165,58,58,0.55)',label:'蜀汉势力'},
+   {color:'rgba(58,165,90,0.55)',label:'东吴势力'},{color:'rgba(155,30,15,0.75)',label:'⚔ 重大战役'},
+   {color:'rgba(80,48,8,0.7)',label:'⬟ 险关要隘'},
+  ].forEach((it,i)=>{
+    const iy=ly+14+i*19;
+    g.append('rect').attr('x',lx).attr('y',iy-7).attr('width',14).attr('height',10).attr('rx',1).attr('fill',it.color);
+    g.append('text').attr('x',lx+20).attr('y',iy+1).attr('font-family','Noto Serif SC,serif').attr('font-size',10).attr('fill','rgba(48,22,3,.82)').text(it.label);
+  });
+}
+
+function showTip(e,title,body){
+  const tt=document.getElementById('mapTooltip');
+  const rect=document.getElementById('map-container').getBoundingClientRect();
+  tt.innerHTML=`<strong style="color:#f0c040;display:block;margin-bottom:3px">${title}</strong>${body}`;
+  tt.style.left=(e.clientX-rect.left+14)+'px';
+  tt.style.top=(e.clientY-rect.top-12)+'px';
+  tt.style.opacity='1';
+}
+function hideTip(){document.getElementById('mapTooltip').style.opacity='0';}
+function showTerrainBadge(txt){const b=document.getElementById('terrainBadge');b.textContent=txt;b.classList.add('show');}
+function hideTerrainBadge(){document.getElementById('terrainBadge').classList.remove('show');}
+
+// ═══════════════════════════════════════════════════════
+//  LIGHT CONTROLS (re-render filter only)
+// ═══════════════════════════════════════════════════════
+// 光照控制已移除
+
+// ═══════════════════════════════════════════════════════
+//  GRAPH
+// ═══════════════════════════════════════════════════════
+function rebuildGraph(){
+  const el=document.getElementById('graph-svg');
+  const W=el.clientWidth||800,H=el.clientHeight||520;
+  const gsvg=d3.select('#graph-svg').attr('viewBox',`0 0 ${W} ${H}`);
+  gsvg.selectAll('*').remove();
+  const fc_=getFilteredChars();
+  const alive=fc_||characters.filter(c=>isAlive(c,currentYear));
+  const aIds=new Set(alive.map(c=>c.id));
+  const links_=relationships.filter(r=>aIds.has(r.source)&&aIds.has(r.target));
+  const nodes=alive.map((c,i)=>({...c,x:W/2+Math.cos(i*2*Math.PI/alive.length)*180,y:H/2+Math.sin(i*2*Math.PI/alive.length)*140}));
+  const links=links_.map(r=>({...r,source:nodes.find(n=>n.id===r.source),target:nodes.find(n=>n.id===r.target)})).filter(l=>l.source&&l.target);
+  const zoom=d3.zoom().scaleExtent([.3,3]).on('zoom',e=>gg.attr('transform',e.transform));
+  gsvg.call(zoom);
+  const gg=gsvg.append('g');
+  const dfs=gsvg.append('defs');
+  dfs.append('marker').attr('id','garr').attr('viewBox','0 -3 6 6').attr('refX',22).attr('refY',0)
+    .attr('markerWidth',6).attr('markerHeight',6).attr('orient','auto')
+    .append('path').attr('d','M0,-3L6,0L0,3').attr('fill','rgba(212,168,67,.35)');
+  if(simulation)simulation.stop();
+  simulation=d3.forceSimulation(nodes)
+    .force('link',d3.forceLink(links).id(d=>d.id).distance(d=>115+(3-d.strength)*40))
+    .force('charge',d3.forceManyBody().strength(-265))
+    .force('center',d3.forceCenter(W/2,H/2))
+    .force('collision',d3.forceCollide(36));
+  const lkSel=gg.append('g').selectAll('line').data(links).enter().append('line').attr('class','g-link').attr('marker-end','url(#garr)');
+  const elSel=gg.append('g').selectAll('text').data(links).enter().append('text').attr('class','g-elabel').text(d=>d.type);
+  const ndG=gg.append('g').selectAll('g').data(nodes).enter().append('g').attr('class','g-node')
+    .call(d3.drag()
+      .on('start',(e,d)=>{if(!e.active)simulation.alphaTarget(.3).restart();d.fx=d.x;d.fy=d.y})
+      .on('drag',(e,d)=>{d.fx=e.x;d.fy=e.y})
+      .on('end',(e,d)=>{if(!e.active)simulation.alphaTarget(0);d.fx=null;d.fy=null}))
+    .on('click',(e,d)=>{e.stopPropagation();const c=characters.find(x=>x.id===d.id);if(c)selectChar(c);});
+  ndG.each(function(d){
+    const c=characters.find(x=>x.id===d.id); if(!c) return;
+    const ng=d3.select(this);
+    const fac2=FAC[getFaction(d,currentYear)]||FAC['群雄'];
+    const clipId2=`clip-graph-${d.id}`;
+    const svgDefs2=ng.node().closest('svg').querySelector('defs');
+    if(svgDefs2&&!document.getElementById(clipId2)){
+      const cp=document.createElementNS('http://www.w3.org/2000/svg','clipPath');
+      cp.setAttribute('id',clipId2);
+      const cl=document.createElementNS('http://www.w3.org/2000/svg','circle');
+      cl.setAttribute('r','20');cl.setAttribute('cx','0');cl.setAttribute('cy','0');
+      cp.appendChild(cl);svgDefs2.appendChild(cp);
+    }
+    ng.append('circle').attr('r',20).attr('fill',fac2.bg);
+    const imgSrc2 = c.image_path
+      ? resolveImagePath(c.image_path)
+      : 'data:image/svg+xml,' + encodeURIComponent(charPortrait(c, 40));
+    ng.append('image')
+      .attr('href',imgSrc2)
+      .attr('x',-20).attr('y',-20).attr('width',40).attr('height',40)
+      .attr('preserveAspectRatio','xMidYMin slice')
+      .attr('clip-path',`url(#${clipId2})`);
+    ng.append('circle').attr('r',20).attr('fill','none')
+      .attr('stroke',fac2.color).attr('stroke-width',2);
+  });
+  gsvg._lkSel=lkSel; gsvg._ndG=ndG;
+  simulation.on('tick',()=>{
+    lkSel.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+    elSel.attr('x',d=>(d.source.x+d.target.x)/2).attr('y',d=>(d.source.y+d.target.y)/2);
+    ndG.attr('transform',d=>`translate(${d.x},${d.y})`);
+  });
+}
+function hlGraph(cid){
+  const gsvg=d3.select('#graph-svg');
+  if(!gsvg._lkSel)return;
+  gsvg._lkSel.classed('hl',d=>d.source.id===cid||d.target.id===cid)
+    .style('stroke',d=>(d.source.id===cid||d.target.id===cid)?'rgba(212,168,67,.85)':'rgba(212,168,67,.18)');
+  gsvg._ndG.select('circle').attr('r',d=>d.id===cid?30:24).attr('stroke-width',d=>d.id===cid?3:2);
+}
+
+// ═══════════════════════════════════════════════════════
+//  DETAIL PANEL
+// ═══════════════════════════════════════════════════════
+function showDetail(char){
+  const f=getFaction(char,currentYear),fac=FAC[f]||FAC['群雄'];
+  const ev=getEvAt(char,Math.max(currentYear,char.died)),alive=isAlive(char,currentYear);
+  document.getElementById('dpEmpty').style.display='none';
+  const c=document.getElementById('dpContent');c.style.display='block';
+  const pastEv=char.events.slice().sort((a,b)=>a.year-b.year);
+  const city=ev?cityById[ev.loc]:null;
+  const terrain=city?getTerrainInfo(city.x/MW,city.y/MH):null;
+
+  const statsH=Object.entries(char.stats).map(([k,v])=>{
+    const col=v>=90?'#f0c95a':v>=70?'#7fb3d3':'#d4a843';
+    return `<div class="srow"><span class="sname">${k}</span><div class="sbar"><div class="sfill" style="width:${v}%;background:${col}"></div></div><span class="sval">${v}</span></div>`;
+  }).join('');
+
+  const evH=pastEv.map(e=>`<div class="tlev"><div class="tlev-yr">${e.year}年</div><div><div class="tlev-desc">${e.desc}</div><div class="tlev-loc">📍${e.loc}</div></div></div>`).join('');
+  const rels=relationships.filter(r=>r.source===char.id||r.target===char.id);
+  const relH=rels.map(r=>{
+    const oid=r.source===char.id?r.target:r.source;
+    const o=characters.find(x=>x.id===oid);if(!o)return '';
+    const of2=FAC[o.faction]||FAC['群雄'];
+    return `<div class="rel-item"><span style="color:${of2.color};font-weight:700">${o.name}</span><span style="color:var(--text2)">${r.type}</span></div>`;
+  }).join('');
+
+  const terrainHtml=terrain?`<div class="terrain-info"><span style="font-size:14px">${terrain.icon}</span><span style="color:${terrain.color}">${terrain.name}</span></div>`:'';
+
+  c.innerHTML=`
+    <div class="dp-hd">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+        <div style="width:60px;height:60px;border-radius:50%;overflow:hidden;box-shadow:inset 0 0 0 2px ${fac.color};flex-shrink:0;cursor:zoom-in" onclick="openAvatarLightbox(characters.find(c=>c.id==='${char.id}'))">${renderAvatarHTML(char,60)}</div>
+        <div><div class="dp-name">${char.name}</div><div class="dp-zi">字 ${char.zi} · ${char.region}</div>
+        <span class="dp-badge" style="background:${fac.bg};color:${fac.color};border:1px solid ${fac.border}">${f}</span></div>
+      </div>
+      ${!alive?`<div style="font-size:10px;color:var(--text2)">⚰ ${char.died}年离世</div>`:''}
+    </div>
+    <div class="dp-sec">
+      <div class="dp-stitle">生平事迹</div>
+      <div class="dp-row"><span>所在地</span><span>${ev?.loc||'不明'}</span></div>
+      ${terrainHtml}
+      <div class="dp-desc" style="margin-top:5px">${ev?.desc||'尚未活跃'}</div>
+    </div>
+    <div class="dp-sec"><div class="dp-stitle">武将能力</div>${statsH}</div>
+    <div class="dp-sec"><div class="dp-stitle">人物关系</div>${relH||'<div style="font-size:11px;color:var(--text2)">暂无数据</div>'}</div>
+    <div class="dp-sec"><div class="dp-stitle">名言</div><div class="quote-blk">${char.quote}</div></div>
+    <div class="dp-sec" style="border:none"><div class="dp-stitle">生平事迹</div>
+      ${evH||'<div style="font-size:11px;color:var(--text2)">暂无记录</div>'}
+    </div>`;
+  setTimeout(()=>c.querySelectorAll('.tlev').forEach((el,i)=>setTimeout(()=>el.classList.add('vis'),i*70)),30);
+}
+
+function selectChar(char){
+  selectedChar=char;
+  buildCharList(getFilteredChars());
+  showDetail(char);
+  if(currentView==='graph')hlGraph(char.id);
+  if(currentView==='map')renderMap();
+}
+
+// ═══════════════════════════════════════════════════════
+//  TIMELINE
+// ═══════════════════════════════════════════════════════
+function syncSlider(){
+  const sl=document.getElementById('yearSlider');
+  sl.value=currentYear;
+  const pct=((currentYear-184)/(280-184))*100;
+  sl.style.background=`linear-gradient(to right,var(--gold) ${pct}%,var(--border) ${pct}%)`;
+  document.getElementById('yearDisplay').textContent=currentYear+'年';
+  const ev=getNearHist(currentYear);
+  document.getElementById('eventTicker').textContent='▶ '+ev.text;
+}
+function updateYear(y){
+  currentYear=y;syncSlider();buildCharList(getFilteredChars());
+  if(currentView==='map')renderMap();else{rebuildGraph();if(selectedChar)hlGraph(selectedChar.id);}
+}
+document.getElementById('yearSlider').addEventListener('input',function(){
+  filterYear=null;buildFilterBar();updateYear(parseInt(this.value));
+});
+
+// ═══════════════════════════════════════════════════════
+//  IMPORT
+// ═══════════════════════════════════════════════════════
+function openImport(){document.getElementById('importModal').classList.add('open');}
+function closeImport(){document.getElementById('importModal').classList.remove('open');}
+
+function exportJSON(){
+  const data = {
+    characters: characters.map(c=>({...c})),
+    relationships: relationships.map(r=>({...r})),
+    cities: MAP_CITIES.map(c=>({...c}))
+  };
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], {type:'application/json'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const date = new Date().toISOString().slice(0,10);
+  a.href     = url;
+  a.download = `sanguo_data_${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function doImport(){
+  const text=document.getElementById('importText').value.trim();
+  const st=document.getElementById('importStatus');
+  try{
+    const data=JSON.parse(text);
+    let addedChars=0, addedCities=0;
+    if(data.characters) data.characters.forEach(c=>{
+      const idx=characters.findIndex(x=>x.id===c.id);
+      if(idx>=0) characters[idx]=c;
+      else { characters.push(c); addedChars++; }
+    });
+    if(data.relationships) data.relationships.forEach(r=>{
+      if(!relationships.find(x=>x.source===r.source&&x.target===r.target))
+        relationships.push(r);
+    });
+    if(data.cities) data.cities.forEach(c=>{
+      const idx=MAP_CITIES.findIndex(x=>x.id===c.id);
+      if(idx>=0) MAP_CITIES[idx]=c;
+      else { MAP_CITIES.push(c); addedCities++; }
+      cityById[c.id]=c; cityById[c.name]=c;
+    });
+    st.className='mstatus ok'; st.style.display='block';
+    st.textContent=`✓ 导入完成：${addedChars} 位新人物，${addedCities} 处新地点`;
+    buildFilterBar(); buildCharList(); rebuildGraph();
+    if(currentView==='map') renderMap();
+    setTimeout(closeImport, 1800);
+  }catch(e){
+    st.className='mstatus err'; st.style.display='block';
+    st.textContent='✗ JSON 格式错误：'+e.message;
+  }
+}
+function loadSample(){
+  document.getElementById('importText').value=JSON.stringify({
+    characters:[
+      {id:'machao',name:'马超',zi:'孟起',faction:'蜀',region:'右扶风茂陵',born:176,died:222,stats:{武力:97,智谋:60,政治:45,魅力:80},quote:'吾家世代公侯，岂惧汝等！',events:[{year:211,loc:'潼关',desc:'潼关之战，大败曹操'},{year:214,loc:'成都',desc:'归降刘备'}]},
+      {id:'zhangfei',name:'张飞',zi:'益德',faction:'蜀',region:'涿郡涿县',born:168,died:221,stats:{武力:96,智谋:52,政治:40,魅力:78},quote:'燕人张翼德在此！谁敢来决一死战？',events:[{year:184,loc:'涿郡',desc:'桃园三结义'},{year:208,loc:'当阳',desc:'长坂坡一声吼，吓退曹军'}]},
+    ],
+    relationships:[{source:'machao',target:'liubei',type:'君臣',strength:2},{source:'zhangfei',target:'liubei',type:'结义兄弟',strength:3},{source:'machao',target:'caocao',type:'宿敌',strength:3}]
+  },null,2);
+}
+document.getElementById('importModal').addEventListener('click',function(e){if(e.target===this)closeImport();});
+window.addEventListener('resize',()=>{if(currentView==='map')renderMap();else rebuildGraph();});
+
+// ═══════════════════════════════════════════════════════
+//  DATA EDITOR
+// ═══════════════════════════════════════════════════════
+let edCurrentTab='char', edSelectedId=null;
+
+function openEditor(){
+  document.getElementById('editorModal').classList.add('open');
+  edSwitchTab(edCurrentTab);
+}
+function closeEditor(){
+  document.getElementById('editorModal').classList.remove('open');
+}
+document.getElementById('editorModal').addEventListener('click',function(e){
+  if(e.target===this)closeEditor();
+});
+
+function edSwitchTab(tab){
+  edCurrentTab=tab; edSelectedId=null;
+  ['char','event','city','rel'].forEach(t=>{
+    const btn=document.getElementById('edTab'+t.charAt(0).toUpperCase()+t.slice(1));
+    if(btn) btn.classList.toggle('active',t===tab);
+  });
+  const body=document.getElementById('edBody');
+  body.innerHTML='';
+  document.getElementById('edSaveBtn').onclick=edSave;
+  if(tab==='char')  renderEdChar(body);
+  if(tab==='event') renderEdEvent(body);
+  if(tab==='city')  renderEdCity(body);
+  if(tab==='rel')   renderEdRel(body);
+}
+function edSave(){} // overridden per-form
+function showEdStatus(msg='✓ 已保存'){
+  const st=document.getElementById('edStatus');
+  st.textContent=msg; st.classList.add('show');
+  setTimeout(()=>st.classList.remove('show'),2200);
+}
+
+// ── helpers ──
+function mk(tag,cls='',attrs={}){
+  const el=document.createElement(tag);
+  if(cls)el.className=cls;
+  Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));
+  return el;
+}
+function mkField(label,inputEl){
+  const w=mk('div','ef-field');
+  const lb=mk('label','ef-label'); lb.textContent=label;
+  w.appendChild(lb); w.appendChild(inputEl); return w;
+}
+function inp(val='',ph='',type='text'){
+  const el=mk('input','ef-input',{type,placeholder:ph});
+  el.value=val; return el;
+}
+function selEl(opts,val=''){
+  const el=mk('select','ef-select');
+  opts.forEach(o=>{const op=mk('option');op.value=o;op.textContent=o;if(o===val)op.selected=true;el.appendChild(op);});
+  return el;
+}
+function secLabel(txt){const el=mk('div','ef-section');el.textContent=txt;return el;}
+
+// ── TAB: 人物 ──
+function renderEdChar(body){
+  const formWrap=mk('div','ed-form');
+  formWrap.innerHTML='<div class="ed-empty-msg">← 选择人物编辑，或点击「＋ 新增」</div>';
+
+  const list=mk('div','ed-list');
+  const hd=mk('div','ed-list-hd');
+  const lt=mk('div','ed-list-title'); lt.textContent='人物列表';
+  const addBtn=mk('button','ed-add-btn'); addBtn.textContent='＋ 新增';
+  addBtn.onclick=()=>edSelectChar(null,listItems,formWrap);
+  hd.appendChild(lt); hd.appendChild(addBtn); list.appendChild(hd);
+
+  const listItems=mk('div','ed-items');
+  function refreshList(){
+    listItems.innerHTML='';
+    characters.forEach(c=>{
+      const item=mk('div','ed-item'+(edSelectedId===c.id?' sel':''));
+      item.dataset.id=c.id;
+      const info=mk('div');
+      const nm=mk('div'); nm.style.fontSize='12px'; nm.textContent=`${c.name}（${c.zi||''}）`;
+      const sub=mk('div','ed-item-sub'); sub.textContent=`${c.faction} · ${c.region||''}`;
+      info.appendChild(nm); info.appendChild(sub); item.appendChild(info);
+      const del=mk('button','ed-del-btn'); del.textContent='✕';
+      del.onclick=e=>{e.stopPropagation();if(!confirm(`删除「${c.name}」？`))return;
+        characters=characters.filter(x=>x.id!==c.id);
+        relationships=relationships.filter(r=>r.source!==c.id&&r.target!==c.id);
+        if(edSelectedId===c.id){edSelectedId=null;formWrap.innerHTML='<div class="ed-empty-msg">← 选择人物编辑</div>';}
+        refreshList(); buildCharList(); rebuildGraph(); if(currentView==='map')renderMap();
+        showEdStatus('✓ 已删除');};
+      item.appendChild(del);
+      item.onclick=()=>edSelectChar(c.id,listItems,formWrap);
+      listItems.appendChild(item);
+    });
+  }
+  refreshList();
+  list.appendChild(listItems);
+  body.appendChild(list); body.appendChild(formWrap);
+  if(edSelectedId) edSelectChar(edSelectedId,listItems,formWrap);
+}
+
+function edSelectChar(id,listItems,formWrap){
+  edSelectedId=id;
+  listItems.querySelectorAll('.ed-item').forEach(el=>el.classList.toggle('sel',el.dataset.id===id));
+  const isNew=!id;
+  const c=isNew?{id:'',name:'',zi:'',faction:'魏',region:'',born:200,died:280,
+    image_path:'',quote:'',stats:{武力:60,智谋:60,政治:60,魅力:60},events:[]}
+    :JSON.parse(JSON.stringify(characters.find(x=>x.id===id)));
+  formWrap.innerHTML='';
+
+  formWrap.appendChild(secLabel('基本信息'));
+  const r1=mk('div','ef-row');
+  const fId=inp(c.id,'唯一ID（英文）');
+  const fName=inp(c.name,'姓名'); const fZi=inp(c.zi||'','字');
+  r1.appendChild(mkField('ID',fId)); r1.appendChild(mkField('姓名',fName)); r1.appendChild(mkField('字',fZi));
+  formWrap.appendChild(r1);
+
+  const r2=mk('div','ef-row');
+  const fFac=selEl(['魏','蜀','吴','汉','群雄'],c.faction);
+  const fReg=inp(c.region||'','籍贯');
+  r2.appendChild(mkField('势力',fFac)); r2.appendChild(mkField('籍贯',fReg));
+  formWrap.appendChild(r2);
+
+  const r3=mk('div','ef-row');
+  const fBorn=inp(String(c.born),'','number'); fBorn.min=100; fBorn.max=300;
+  const fDied=inp(String(c.died),'','number'); fDied.min=100; fDied.max=400;
+  r3.appendChild(mkField('出生年',fBorn)); r3.appendChild(mkField('卒年',fDied));
+  formWrap.appendChild(r3);
+
+  const r4=mk('div','ef-row');
+  const fImg=inp(c.image_path||'','Assets/Resources/Avatars/xxx.png');
+  r4.appendChild(mkField('头像路径（可选）',fImg)); formWrap.appendChild(r4);
+
+  const rq=mk('div','ef-row');
+  const fQuote=mk('textarea','ef-input'); fQuote.style.cssText='height:48px;resize:vertical;';
+  fQuote.value=c.quote||''; fQuote.placeholder='名言';
+  rq.appendChild(mkField('名言',fQuote)); formWrap.appendChild(rq);
+
+  formWrap.appendChild(secLabel('武将能力'));
+  const sg=mk('div','stats-grid'); const si={};
+  Object.entries(c.stats||{武力:60,智谋:60,政治:60,魅力:60}).forEach(([k,v])=>{
+    const el=inp(String(v),'','number'); el.min=1; el.max=100;
+    si[k]=el; sg.appendChild(mkField(k,el));
+  });
+  formWrap.appendChild(sg);
+
+  formWrap.appendChild(secLabel('历史事件'));
+  const evList=mk('div','ev-list');
+  const renderEvs=()=>{
+    evList.innerHTML='';
+    c.events.forEach((ev,i)=>{
+      const row=mk('div','ev-item');
+      const fields=mk('div','ev-item-fields');
+      const eY=inp(String(ev.year),'年份','number'); eY.style.cssText='width:72px;flex:none';
+      eY.onchange=()=>{ev.year=parseInt(eY.value)||ev.year;};
+      const eL=inp(ev.loc,'地点'); eL.style.cssText='width:88px;flex:none';
+      eL.onchange=()=>{ev.loc=eL.value;};
+      const eD=inp(ev.desc,'描述'); eD.style.flex='1';
+      eD.onchange=()=>{ev.desc=eD.value;};
+      fields.appendChild(eY); fields.appendChild(eL); fields.appendChild(eD);
+      const del=mk('button','ev-del'); del.textContent='✕';
+      del.onclick=()=>{c.events.splice(i,1);renderEvs();};
+      row.appendChild(fields); row.appendChild(del); evList.appendChild(row);
+    });
+    const addBtn=mk('button','ev-add-btn'); addBtn.textContent='＋ 添加事件';
+    addBtn.onclick=()=>{c.events.push({year:currentYear||200,loc:'',desc:''});renderEvs();};
+    evList.appendChild(addBtn);
+  };
+  renderEvs(); formWrap.appendChild(evList);
+
+  document.getElementById('edSaveBtn').onclick=()=>{
+    c.id=fId.value.trim().replace(/\s+/g,'_');
+    c.name=fName.value.trim(); c.zi=fZi.value.trim();
+    c.faction=fFac.value; c.region=fReg.value.trim();
+    c.born=parseInt(fBorn.value)||c.born; c.died=parseInt(fDied.value)||c.died;
+    c.image_path=fImg.value.trim()||undefined; c.quote=fQuote.value.trim();
+    Object.entries(si).forEach(([k,el])=>{c.stats[k]=Math.max(1,Math.min(100,parseInt(el.value)||60));});
+    if(!c.id){showEdStatus('✗ ID不能为空');return;}
+    if(!c.name){showEdStatus('✗ 姓名不能为空');return;}
+    const idx=characters.findIndex(x=>x.id===c.id);
+    if(idx>=0)characters[idx]=c; else{characters.push(c);edSelectedId=c.id;}
+    buildFilterBar(); buildCharList(); rebuildGraph();
+    if(currentView==='map')renderMap();
+    showEdStatus(`✓ ${c.name} 已保存`);
+    renderEdChar(document.getElementById('edBody'));
+  };
+}
+
+// ── TAB: 历史事件 ──
+function renderEdEvent(body){
+  const formWrap=mk('div','ed-form');
+  formWrap.innerHTML='<div class="ed-empty-msg">← 选择人物查看事件</div>';
+
+  const list=mk('div','ed-list');
+  const hd=mk('div','ed-list-hd');
+  const lt=mk('div','ed-list-title'); lt.textContent='选择人物';
+  hd.appendChild(lt); list.appendChild(hd);
+
+  const listItems=mk('div','ed-items');
+  characters.forEach(c=>{
+    const item=mk('div','ed-item'+(edSelectedId===c.id?' sel':''));
+    item.dataset.id=c.id;
+    const nm=mk('div'); nm.style.fontSize='12px'; nm.textContent=`${c.name}（${c.events.length}条）`;
+    const sub=mk('div','ed-item-sub'); sub.textContent=c.faction;
+    item.appendChild(nm); item.appendChild(sub);
+    item.onclick=()=>{
+      edSelectedId=c.id;
+      listItems.querySelectorAll('.ed-item').forEach(el=>el.classList.toggle('sel',el.dataset.id===c.id));
+      renderEvForm(formWrap,c);
+    };
+    listItems.appendChild(item);
+  });
+  list.appendChild(listItems);
+  body.appendChild(list); body.appendChild(formWrap);
+  if(edSelectedId){const c=characters.find(x=>x.id===edSelectedId);if(c)renderEvForm(formWrap,c);}
+}
+
+function renderEvForm(formWrap,c){
+  formWrap.innerHTML='';
+  formWrap.appendChild(secLabel(`${c.name} 的历史事件`));
+  const evList=mk('div','ev-list');
+  const rebuild=()=>{
+    evList.innerHTML='';
+    c.events.sort((a,b)=>a.year-b.year);
+    c.events.forEach((ev,i)=>{
+      const row=mk('div','ev-item'); const fields=mk('div','ev-item-fields');
+      const eY=inp(String(ev.year),'年份','number'); eY.style.cssText='width:75px;flex:none';
+      eY.onchange=()=>{ev.year=parseInt(eY.value)||ev.year;c.events.sort((a,b)=>a.year-b.year);rebuild();};
+      const eL=inp(ev.loc,'地点'); eL.style.cssText='width:90px;flex:none';
+      eL.onchange=()=>ev.loc=eL.value;
+      const eD=inp(ev.desc,'描述'); eD.style.flex='1';
+      eD.onchange=()=>ev.desc=eD.value;
+      fields.appendChild(eY); fields.appendChild(eL); fields.appendChild(eD);
+      const del=mk('button','ev-del'); del.textContent='✕';
+      del.onclick=()=>{c.events.splice(i,1);rebuild();};
+      row.appendChild(fields); row.appendChild(del); evList.appendChild(row);
+    });
+    const addBtn=mk('button','ev-add-btn'); addBtn.textContent='＋ 添加事件';
+    addBtn.onclick=()=>{c.events.push({year:currentYear||200,loc:'',desc:''});rebuild();};
+    evList.appendChild(addBtn);
+  };
+  rebuild(); formWrap.appendChild(evList);
+  document.getElementById('edSaveBtn').onclick=()=>{
+    buildCharList(); if(selectedChar?.id===c.id)showDetail(c);
+    if(currentView==='map')renderMap();
+    showEdStatus(`✓ ${c.name} 事件已保存`);
+  };
+}
+
+// ── TAB: 地点 ──
+function renderEdCity(body){
+  const formWrap=mk('div','ed-form');
+  formWrap.innerHTML='<div class="ed-empty-msg">← 选择城池编辑，或点击「＋ 新增」</div>';
+
+  const list=mk('div','ed-list');
+  const hd=mk('div','ed-list-hd');
+  const lt=mk('div','ed-list-title'); lt.textContent='城池列表';
+  const addBtn=mk('button','ed-add-btn'); addBtn.textContent='＋ 新增';
+  addBtn.onclick=()=>{edSelectedId=null;renderCityForm(formWrap,null);};
+  hd.appendChild(lt); hd.appendChild(addBtn); list.appendChild(hd);
+
+  const listItems=mk('div','ed-items');
+  function refreshList(){
+    listItems.innerHTML='';
+    MAP_CITIES.forEach(city=>{
+      const item=mk('div','ed-item'+(edSelectedId===city.id?' sel':''));
+      item.dataset.id=city.id;
+      const nm=mk('div'); nm.style.fontSize='12px'; nm.textContent=city.name;
+      const sub=mk('div','ed-item-sub'); sub.textContent=`tier ${city.tier} · (${city.x}, ${city.y})`;
+      item.appendChild(nm); item.appendChild(sub);
+      const del=mk('button','ed-del-btn'); del.textContent='✕';
+      del.onclick=e=>{e.stopPropagation();
+        const idx=MAP_CITIES.findIndex(c=>c.id===city.id);
+        if(idx>=0){delete cityById[MAP_CITIES[idx].name];delete cityById[city.id];MAP_CITIES.splice(idx,1);}
+        if(edSelectedId===city.id){edSelectedId=null;formWrap.innerHTML='<div class="ed-empty-msg">← 选择城池编辑</div>';}
+        refreshList(); if(currentView==='map')renderMap(); showEdStatus('✓ 已删除');};
+      item.appendChild(del);
+      item.onclick=()=>{edSelectedId=city.id;listItems.querySelectorAll('.ed-item').forEach(el=>el.classList.toggle('sel',el.dataset.id===city.id));renderCityForm(formWrap,city);};
+      listItems.appendChild(item);
+    });
+  }
+  refreshList();
+  list.appendChild(listItems);
+  body.appendChild(list); body.appendChild(formWrap);
+  if(edSelectedId){const city=MAP_CITIES.find(c=>c.id===edSelectedId);if(city)renderCityForm(formWrap,city);}
+}
+
+// ── 坐标拾取模式 ──
+let _coordPickCallback = null;  // 拾取坐标后的回调
+
+function enableCoordPick(callback) {
+  _coordPickCallback = callback;
+  const badge = document.getElementById('coordBadge');
+  badge.classList.add('active');
+  badge.textContent = '🎯 点击地图选取坐标 · X=— Y=—';
+  // 覆盖 SVG 的鼠标样式
+  const svg = document.getElementById('map-svg');
+  if(svg) svg.style.cursor = 'crosshair';
+}
+
+function disableCoordPick() {
+  _coordPickCallback = null;
+  const badge = document.getElementById('coordBadge');
+  badge.classList.remove('active');
+  const svg = document.getElementById('map-svg');
+  if(svg) svg.style.cursor = '';
+}
+
+// 在 renderMap 里绑定鼠标事件 — 注入到 svg 上
+function bindCoordEvents(svg) {
+  svg.on('mousemove.coord', function(event) {
+    if(!_coordPickCallback && !document.getElementById('coordBadge').classList.contains('active')) return;
+    const [mx, my] = d3.pointer(event, this);
+    const t = d3.zoomTransform(this);
+    const mapX = Math.round((mx - t.x) / t.k);
+    const mapY = Math.round((my - t.y) / t.k);
+    const badge = document.getElementById('coordBadge');
+    if(badge.classList.contains('active')) {
+      badge.textContent = `🎯 点击选取坐标 · X=${mapX}  Y=${mapY}`;
+    }
+  });
+  svg.on('click.coord', function(event) {
+    if(!_coordPickCallback) return;
+    const [mx, my] = d3.pointer(event, this);
+    const t = d3.zoomTransform(this);
+    const mapX = Math.round((mx - t.x) / t.k);
+    const mapY = Math.round((my - t.y) / t.k);
+    _coordPickCallback(mapX, mapY);
+    disableCoordPick();
+  });
+}
+
+function renderCityForm(formWrap, city) {
+  const isNew = !city;
+  const c = isNew ? {id:'',name:'',x:700,y:400,tier:2} : {...city};
+  formWrap.innerHTML = '';
+  formWrap.appendChild(secLabel('城池信息'));
+
+  const hint = mk('div');
+  hint.style.cssText = 'font-size:10px;color:var(--text2);line-height:1.7;padding:4px 0';
+  hint.innerHTML = '坐标范围：<b style="color:var(--gold2)">X: 0–1400，Y: 0–920</b>。'
+    + '可手动输入，或点击「🎯 在地图上选取」后直接点击地图。';
+  formWrap.appendChild(hint);
+
+  const r1 = mk('div','ef-row');
+  const fId = inp(c.id, '唯一ID（英文）');
+  const fName = inp(c.name, '名称');
+  r1.appendChild(mkField('ID', fId));
+  r1.appendChild(mkField('名称', fName));
+  formWrap.appendChild(r1);
+
+  const r2 = mk('div','ef-row');
+  const fX = inp(String(c.x), 'X 坐标', 'number'); fX.min=0; fX.max=1400;
+  const fY = inp(String(c.y), 'Y 坐标', 'number'); fY.min=0; fY.max=920;
+  const fT = selEl(['1','2','3'], String(c.tier));
+  r2.appendChild(mkField('X 坐标', fX));
+  r2.appendChild(mkField('Y 坐标', fY));
+  r2.appendChild(mkField('等级', fT));
+  formWrap.appendChild(r2);
+
+  // 地图选取按钮
+  const pickRow = mk('div','ef-row');
+  const pickBtn = mk('button','ed-add-btn');
+  pickBtn.style.cssText = 'font-size:11px;padding:5px 14px;letter-spacing:0.5px';
+  pickBtn.textContent = '🎯 在地图上选取坐标';
+  pickBtn.onclick = () => {
+    closeEditor();  // 折叠编辑器，露出地图
+    enableCoordPick((x, y) => {
+      fX.value = x; fY.value = y;
+      openEditor();  // 重新打开编辑器
+      // 保持在城池标签且当前表单状态
+      edCurrentTab = 'city';
+      showEdStatus(`✓ 已选取坐标 (${x}, ${y})`);
+    });
+  };
+  pickRow.appendChild(pickBtn);
+  formWrap.appendChild(pickRow);
+
+  const help = mk('div'); help.style.cssText = 'font-size:10px;color:var(--text2)';
+  help.textContent = '等级：1=大城郭  2=中型城  3=小据点';
+  formWrap.appendChild(help);
+
+  document.getElementById('edSaveBtn').onclick = () => {
+    c.id   = fId.value.trim().replace(/\s+/g,'_');
+    c.name = fName.value.trim();
+    c.x    = Math.round(parseFloat(fX.value) || c.x);
+    c.y    = Math.round(parseFloat(fY.value) || c.y);
+    c.tier = parseInt(fT.value) || 2;
+    if(!c.id || !c.name) { showEdStatus('✗ ID和名称不能为空'); return; }
+    const idx = MAP_CITIES.findIndex(x=>x.id===c.id);
+    if(idx>=0) MAP_CITIES[idx]=c; else MAP_CITIES.push(c);
+    cityById[c.id]=c; cityById[c.name]=c;
+    edSelectedId = c.id;
+    if(currentView==='map') renderMap();
+    showEdStatus(`✓ ${c.name} 已保存`);
+    renderEdCity(document.getElementById('edBody'));
+  };
+}
+
+// ── TAB: 关系 ──
+function renderEdRel(body){
+  const formWrap=mk('div','ed-form');
+  formWrap.innerHTML='<div class="ed-empty-msg">← 选择关系编辑，或点击「＋ 新增」</div>';
+
+  const list=mk('div','ed-list');
+  const hd=mk('div','ed-list-hd');
+  const lt=mk('div','ed-list-title'); lt.textContent='关系列表';
+  const addBtn=mk('button','ed-add-btn'); addBtn.textContent='＋ 新增';
+  addBtn.onclick=()=>{edSelectedId=null;renderRelForm(formWrap,null,null);};
+  hd.appendChild(lt); hd.appendChild(addBtn); list.appendChild(hd);
+
+  const listItems=mk('div','ed-items');
+  function refreshList(){
+    listItems.innerHTML='';
+    relationships.forEach((r,i)=>{
+      const src=characters.find(c=>c.id===r.source);
+      const tgt=characters.find(c=>c.id===r.target);
+      const item=mk('div','ed-item'+(edSelectedId===i?' sel':''));
+      item.dataset.id=i;
+      const nm=mk('div'); nm.style.fontSize='12px';
+      nm.textContent=`${src?.name||r.source} → ${tgt?.name||r.target}`;
+      const sub=mk('div','ed-item-sub'); sub.textContent=`${r.type}  强度${r.strength}`;
+      item.appendChild(nm); item.appendChild(sub);
+      const del=mk('button','ed-del-btn'); del.textContent='✕';
+      del.onclick=e=>{e.stopPropagation();relationships.splice(i,1);refreshList();rebuildGraph();showEdStatus('✓ 已删除');};
+      item.appendChild(del);
+      item.onclick=()=>{edSelectedId=i;listItems.querySelectorAll('.ed-item').forEach(el=>el.classList.toggle('sel',el.dataset.id==i));renderRelForm(formWrap,r,i);};
+      listItems.appendChild(item);
+    });
+  }
+  refreshList();
+  list.appendChild(listItems);
+  body.appendChild(list); body.appendChild(formWrap);
+  if(typeof edSelectedId==='number'&&relationships[edSelectedId])
+    renderRelForm(formWrap,relationships[edSelectedId],edSelectedId);
+}
+
+function renderRelForm(formWrap,rel,idx){
+  const isNew=rel==null;
+  const r=isNew?{source:'',target:'',type:'盟友',strength:2}:{...rel};
+  formWrap.innerHTML='';
+  formWrap.appendChild(secLabel('关系信息'));
+
+  const charIds=characters.map(c=>c.id);
+  const typeOpts=['结义兄弟','君臣','政敌','宿敌','盟友','对手','知遇/敌对'];
+
+  const r1=mk('div','ef-row');
+  const fSrc=selEl(charIds,r.source); const fTgt=selEl(charIds,r.target);
+  r1.appendChild(mkField('发起方',fSrc)); r1.appendChild(mkField('目标方',fTgt)); formWrap.appendChild(r1);
+
+  const r2=mk('div','ef-row');
+  const fType=selEl(typeOpts,r.type);
+  const fCustom=inp(typeOpts.includes(r.type)?'':r.type,'自定义类型');
+  const fStr=selEl(['1','2','3'],String(r.strength));
+  r2.appendChild(mkField('关系类型',fType)); r2.appendChild(mkField('自定义（优先）',fCustom));
+  r2.appendChild(mkField('强度1-3',fStr)); formWrap.appendChild(r2);
+
+  const help=mk('div'); help.style.cssText='font-size:10px;color:var(--text2)';
+  help.textContent='强度：3=亲密  2=普通  1=疏远（影响关系图距离）';
+  formWrap.appendChild(help);
+
+  document.getElementById('edSaveBtn').onclick=()=>{
+    r.source=fSrc.value; r.target=fTgt.value;
+    r.type=fCustom.value.trim()||fType.value;
+    r.strength=parseInt(fStr.value)||2;
+    if(r.source===r.target){showEdStatus('✗ 不能选同一人');return;}
+    if(isNew){relationships.push(r);edSelectedId=relationships.length-1;}
+    else relationships[idx]=r;
+    rebuildGraph(); showEdStatus('✓ 关系已保存');
+    renderEdRel(document.getElementById('edBody'));
+  };
+}
+
+// ── 头像大图预览 ──
+function openAvatarLightbox(char) {
+  const fac = FAC[getFaction(char, currentYear)] || FAC['群雄'];
+  const imgEl = document.getElementById('avLightboxImg');
+  imgEl.style.borderColor = fac.color;
+  imgEl.style.boxShadow = `0 0 40px ${fac.color}66, 0 8px 32px rgba(0,0,0,.8)`;
+  // 渲染头像（优先图片，fallback 程序生成）
+  if(char.image_path) {
+    const src = resolveImagePath(char.image_path);
+    imgEl.innerHTML = `<img src="${src}" alt="${char.name}"
+      onerror="this.parentNode.innerHTML=window._portraitFor('${char.id}',480))"
+      style="width:100%;height:100%;object-fit:cover;object-position:top center;display:block">`;
+  } else {
+    imgEl.innerHTML = charPortrait(char, 480);
+  }
+  document.getElementById('avLightboxName').textContent = `${char.name}  ${char.zi}`;
+  document.getElementById('avLightboxName').style.color = fac.color;
+  document.getElementById('avLightboxSub').textContent =
+    `${char.faction} · ${char.region} · ${char.born}–${char.died}`;
+  document.getElementById('avLightbox').classList.add('open');
+}
+window._portraitFor = (id, size) => {
+  const c = characters.find(x => x.id === id);
+  return c ? charPortrait(c, size) : '';
+};
+function closeAvatarLightbox() {
+  document.getElementById('avLightbox').classList.remove('open');
+}
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') closeAvatarLightbox();
+});
+
+// ── 侧栏搜索过滤 ──
+let charSearchQuery = '';
+function filterCharSearch(q) {
+  charSearchQuery = q.trim().toLowerCase();
+  buildCharList(getFilteredChars());
+}
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+buildFilterBar();
+buildCharList();
+syncSlider();
+// Wait for DOM layout before measuring container size
+requestAnimationFrame(()=>requestAnimationFrame(renderMap));
+</script>
+</body>
+</html>
